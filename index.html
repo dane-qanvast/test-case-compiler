@@ -1,0 +1,850 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Test Case Report Compiler</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<style>
+  body { margin: 0; background: #030712; color: #f3f4f6; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: #0a0a0f; }
+  ::-webkit-scrollbar-thumb { background: #2a2a35; border-radius: 5px; border: 2px solid #0a0a0f; }
+  ::-webkit-scrollbar-thumb:hover { background: #3a3a48; }
+  ::-webkit-scrollbar-corner { background: #0a0a0f; }
+  * { scrollbar-color: #2a2a35 #0a0a0f; scrollbar-width: thin; }
+  .step-btn-preview { opacity: 0; transition: opacity 0.15s; }
+  .step-btn:hover .step-btn-preview { opacity: 0.5; }
+  select.dark-select {
+    appearance: none; -webkit-appearance: none; -moz-appearance: none;
+    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 0.75rem center;
+    background-size: 12px; padding-right: 2.25rem !important;
+  }
+  select.dark-select::-ms-expand { display: none; }
+  @media (min-width: 1200px) {
+    .split-container { flex-direction: row !important; overflow: hidden !important; }
+    .split-column { overflow-y: auto !important; }
+  }
+  #loading { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: #030712; color: #9ca3af; font-size: 14px; z-index: 9999; }
+</style>
+</head>
+<body>
+<div id="loading">Loading…</div>
+<div id="root"></div>
+
+<script type="text/babel" data-presets="react">
+const { useState, useEffect, useRef } = React;
+
+// ─── Inline SVG icons (Lucide-style) ───────────────────────────────────────────
+const Icon = ({ d, ...p }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}>{d}</svg>
+);
+const Upload = (p) => <Icon {...p} d={<><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></>}/>;
+const ChevronLeft = (p) => <Icon {...p} d={<polyline points="15 18 9 12 15 6"/>}/>;
+const ChevronRight = (p) => <Icon {...p} d={<polyline points="9 18 15 12 9 6"/>}/>;
+const Download = (p) => <Icon {...p} d={<><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></>}/>;
+const FileText = (p) => <Icon {...p} d={<><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></>}/>;
+const ImageIcon = (p) => <Icon {...p} d={<><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></>}/>;
+const X = (p) => <Icon {...p} d={<><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></>}/>;
+const CheckCircle2 = (p) => <Icon {...p} d={<><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></>}/>;
+const XCircle = (p) => <Icon {...p} d={<><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></>}/>;
+const AlertCircle = (p) => <Icon {...p} d={<><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></>}/>;
+const Clock = (p) => <Icon {...p} d={<><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></>}/>;
+const HelpCircle = (p) => <Icon {...p} d={<><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></>}/>;
+const Trash2 = (p) => <Icon {...p} d={<><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></>}/>;
+const FileDown = (p) => <Icon {...p} d={<><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 18 15 15"/></>}/>;
+const Search = (p) => <Icon {...p} d={<><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></>}/>;
+const PanelLeftClose = (p) => <Icon {...p} d={<><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/><polyline points="16 15 13 12 16 9"/></>}/>;
+const PanelLeftOpen = (p) => <Icon {...p} d={<><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/><polyline points="14 9 17 12 14 15"/></>}/>;
+const Plus = (p) => <Icon {...p} d={<><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></>}/>;
+const Users = (p) => <Icon {...p} d={<><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></>}/>;
+const Home = (p) => <Icon {...p} d={<><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></>}/>;
+const RotateCcw = (p) => <Icon {...p} d={<><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></>}/>;
+const Pencil = (p) => <Icon {...p} d={<><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></>}/>;
+
+const STATUS_OPTIONS = [
+  { value: 'Not Tested', color: 'bg-gray-700 text-gray-300 border-gray-600', dot: 'bg-gray-500', icon: Clock },
+  { value: 'Pass', color: 'bg-green-900/40 text-green-300 border-green-700', dot: 'bg-green-500', icon: CheckCircle2 },
+  { value: 'Fail', color: 'bg-red-900/40 text-red-300 border-red-700', dot: 'bg-red-500', icon: XCircle },
+  { value: 'Blocked', color: 'bg-orange-900/40 text-orange-300 border-orange-700', dot: 'bg-orange-500', icon: AlertCircle },
+  { value: 'Needs Review', color: 'bg-yellow-900/40 text-yellow-300 border-yellow-700', dot: 'bg-yellow-500', icon: HelpCircle },
+];
+
+const getStatusConfig = (s) => STATUS_OPTIONS.find(x => x.value === s) || STATUS_OPTIONS[0];
+
+const parseSteps = (raw) => {
+  if (!raw || typeof raw !== 'string') return [];
+  const text = raw.trim();
+  if (!text) return [];
+  const mark = /^\s*(?:\(?\d+[\.\)\:]|step\s+\d+[\.\)\:]?|[-*•])\s+/i;
+  const strip = (l) => l.replace(mark, '').trim();
+  const lines = text.split(/\n+/).map(l => l.trim()).filter(Boolean);
+  if (!lines.length) return [];
+  if (!lines.some(l => mark.test(l))) return lines;
+  const out = [];
+  for (const l of lines) {
+    if (mark.test(l)) out.push(strip(l));
+    else if (out.length) out[out.length - 1] += '\n' + l;
+    else out.push(l);
+  }
+  return out.filter(Boolean);
+};
+
+const STORAGE_KEY = 'test_case_compiler_v1';
+
+// ─── localStorage adapter (replaces window.storage) ────────────────────────────
+const storage = {
+  async get() {
+    try {
+      const v = localStorage.getItem(STORAGE_KEY);
+      return v ? { value: v } : null;
+    } catch (e) { return null; }
+  },
+  async set(v) {
+    try { localStorage.setItem(STORAGE_KEY, v); return true; } catch (e) { return false; }
+  },
+  async clear() {
+    try { localStorage.removeItem(STORAGE_KEY); return true; } catch (e) { return false; }
+  }
+};
+
+function App() {
+  const [testCases, setTestCases] = useState([]);
+  const [findings, setFindings] = useState({});
+  const [currentIdx, setCurrentIdx] = useState(0);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [search, setSearch] = useState('');
+  const [filterStatus, setFilterStatus] = useState('All');
+  const [loaded, setLoaded] = useState(false);
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const [testers, setTesters] = useState([]);
+  const [lastUsedTester, setLastUsedTester] = useState('');
+  const [showUploadScreen, setShowUploadScreen] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const fileInputRef = useRef(null);
+  const screenshotInputRef = useRef(null);
+  const pageRef = useRef(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const stored = await storage.get();
+        if (stored?.value) {
+          const data = JSON.parse(stored.value);
+          const rehydrated = (data.testCases || []).map(tc => ({
+            ...tc,
+            __steps: tc.__steps && Array.isArray(tc.__steps) && tc.__steps.length > 0 ? tc.__steps : parseSteps(tc.Steps),
+          }));
+          setTestCases(rehydrated);
+          setFindings(data.findings || {});
+          setCurrentIdx(data.currentIdx || 0);
+          setTesters(data.testers || []);
+          setLastUsedTester(data.lastUsedTester || '');
+        }
+      } catch (e) {} finally { setLoaded(true); }
+    })();
+  }, []);
+
+  useEffect(() => {
+    if (!loaded || testCases.length === 0) return;
+    const t = setTimeout(() => {
+      try { storage.set(JSON.stringify({ testCases, findings, currentIdx, testers, lastUsedTester })); } catch (e) {}
+    }, 500);
+    return () => clearTimeout(t);
+  }, [testCases, findings, currentIdx, testers, lastUsedTester, loaded]);
+
+  const handleFile = (file, testerList) => {
+    if (!file) return;
+    Papa.parse(file, {
+      header: true, dynamicTyping: false, skipEmptyLines: true,
+      transformHeader: h => h.trim(),
+      complete: (results) => {
+        const rows = results.data.filter(r => Object.values(r).some(v => v && String(v).trim()))
+          .map((r, i) => ({ ...r, __id: r['Test ID'] || `row-${i}`, __steps: parseSteps(r.Steps) }));
+        setTestCases(rows);
+        const init = {};
+        rows.forEach(r => {
+          const s = r.Status && String(r.Status).trim() && !['nan','NaN',''].includes(String(r.Status).trim()) ? r.Status : 'Not Tested';
+          const tb = r['Tested By'] && !['nan','NaN'].includes(String(r['Tested By'])) ? r['Tested By'] : '';
+          const n = r.Notes && !['nan','NaN'].includes(String(r.Notes)) ? r.Notes : '';
+          init[r.__id] = { status: s, testedBy: tb, notes: n, screenshots: [], stepNotes: {}, stepChecks: {} };
+        });
+        setFindings(init);
+        setTesters(testerList || []);
+        setCurrentIdx(0);
+      },
+      error: (e) => alert('Error parsing CSV: ' + e.message)
+    });
+  };
+
+  const updateFinding = (id, key, value) => {
+    setFindings(prev => ({ ...prev, [id]: { ...(prev[id] || { status:'Not Tested', testedBy:'', notes:'', screenshots:[], stepNotes:{}, stepChecks:{} }), [key]: value } }));
+  };
+  const updateStepNote = (id, idx, value) => {
+    setFindings(prev => {
+      const c = prev[id] || { status:'Not Tested', testedBy:'', notes:'', screenshots:[], stepNotes:{}, stepChecks:{} };
+      return { ...prev, [id]: { ...c, stepNotes: { ...(c.stepNotes||{}), [idx]: value } } };
+    });
+  };
+  const toggleStepCheck = (id, idx) => {
+    setFindings(prev => {
+      const c = prev[id] || { status:'Not Tested', testedBy:'', notes:'', screenshots:[], stepNotes:{}, stepChecks:{} };
+      const cs = (c.stepChecks||{})[idx];
+      const nc = { ...(c.stepChecks||{}) };
+      if (cs === 'done' || cs === true) delete nc[idx]; else nc[idx] = 'done';
+      return { ...prev, [id]: { ...c, stepChecks: nc } };
+    });
+  };
+  const handleTesterChange = (id, v) => { updateFinding(id, 'testedBy', v); if (v) setLastUsedTester(v); };
+
+  useEffect(() => {
+    if (!testCases.length) return;
+    const cur = testCases[currentIdx]; if (!cur) return;
+    const f = findings[cur.__id];
+    if (f && !f.testedBy && lastUsedTester) updateFinding(cur.__id, 'testedBy', lastUsedTester);
+  }, [currentIdx, testCases.length]);
+
+  const addScreenshots = async (id, files) => {
+    const arr = Array.from(files).filter(f => f.type.startsWith('image/'));
+    const shots = await Promise.all(arr.map(file => new Promise(res => {
+      const r = new FileReader();
+      r.onload = e => res({ name: file.name, data: e.target.result, size: file.size, addedAt: Date.now()+Math.random() });
+      r.readAsDataURL(file);
+    })));
+    setFindings(prev => {
+      const c = prev[id] || { status:'Not Tested', testedBy:'', notes:'', screenshots:[], stepNotes:{}, stepChecks:{} };
+      return { ...prev, [id]: { ...c, screenshots: [...(c.screenshots||[]), ...shots] } };
+    });
+  };
+  const removeScreenshot = (id, idx) => {
+    setFindings(prev => {
+      const c = prev[id]; if (!c) return prev;
+      return { ...prev, [id]: { ...c, screenshots: c.screenshots.filter((_,i)=>i!==idx) } };
+    });
+  };
+
+  useEffect(() => {
+    const onPaste = (e) => {
+      if (!testCases.length) return;
+      const items = e.clipboardData?.items; if (!items) return;
+      const imgs = [];
+      for (const it of items) if (it.type.startsWith('image/')) { const f = it.getAsFile(); if (f) imgs.push(f); }
+      if (imgs.length) {
+        e.preventDefault();
+        const cid = testCases[currentIdx]?.__id;
+        if (cid) addScreenshots(cid, imgs);
+      }
+    };
+    window.addEventListener('paste', onPaste);
+    return () => window.removeEventListener('paste', onPaste);
+  }, [testCases, currentIdx]);
+
+  const doReset = async () => {
+    setShowResetConfirm(false);
+    setTestCases([]); setFindings({}); setCurrentIdx(0); setTesters([]); setLastUsedTester('');
+    setSearch(''); setFilterStatus('All'); setShowUploadScreen(false);
+    try { await storage.clear(); } catch (e) {}
+  };
+
+  const exportHTML = () => {
+    try {
+      const esc = s => String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+      const counts = STATUS_OPTIONS.reduce((a,s) => { a[s.value] = testCases.filter(t => (findings[t.__id]?.status||'Not Tested')===s.value).length; return a; }, {});
+      const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Test Case Report - ${new Date().toLocaleDateString()}</title>
+<style>
+* { box-sizing: border-box; }
+body { font-family: -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; max-width:1100px; margin:0 auto; padding:32px; color:#1f2937; background:#f9fafb; }
+h1 { color:#111827; border-bottom:3px solid #6366f1; padding-bottom:12px; }
+.meta { color:#6b7280; margin-bottom:24px; font-size:14px; }
+.summary { background:white; padding:20px; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.1); margin-bottom:32px; display:flex; flex-wrap:wrap; gap:16px; }
+.stat { padding:12px 18px; border-radius:6px; font-weight:600; font-size:14px; }
+.stat-Pass{background:#d1fae5;color:#065f46}.stat-Fail{background:#fee2e2;color:#991b1b}.stat-Blocked{background:#fed7aa;color:#9a3412}.stat-Needs-Review{background:#fef3c7;color:#92400e}.stat-Not-Tested{background:#f3f4f6;color:#4b5563}
+.test-case { background:white; border-radius:8px; padding:24px; margin-bottom:24px; box-shadow:0 1px 3px rgba(0,0,0,0.1); page-break-inside:avoid; }
+.tc-header { display:flex; justify-content:space-between; align-items:start; flex-wrap:wrap; gap:12px; margin-bottom:16px; padding-bottom:12px; border-bottom:1px solid #e5e7eb; }
+.tc-title { font-size:18px; font-weight:700; color:#111827; margin:0; }
+.tc-id { color:#6b7280; font-size:13px; font-family:monospace; }
+.badge { display:inline-block; padding:4px 12px; border-radius:12px; font-size:12px; font-weight:600; }
+.badge-Pass{background:#d1fae5;color:#065f46}.badge-Fail{background:#fee2e2;color:#991b1b}.badge-Blocked{background:#fed7aa;color:#9a3412}.badge-Needs-Review{background:#fef3c7;color:#92400e}.badge-Not-Tested{background:#f3f4f6;color:#4b5563}
+.field { margin-bottom:12px; }
+.field-label { font-weight:600; color:#374151; font-size:13px; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px; }
+.field-value { color:#1f2937; white-space:pre-wrap; }
+.findings { margin-top:20px; padding-top:16px; border-top:2px solid #e5e7eb; background:#f9fafb; padding:16px; border-radius:6px; }
+.findings-title { font-weight:700; color:#4338ca; margin-bottom:12px; font-size:14px; text-transform:uppercase; letter-spacing:0.5px; }
+.prompt-block { margin-top:16px; border:1px solid #d1d5db; border-radius:6px; background:#f9fafb; overflow:hidden; }
+.prompt-header { display:flex; justify-content:space-between; align-items:center; padding:8px 12px; background:#f3f4f6; border-bottom:1px solid #d1d5db; }
+.prompt-label { font-size:11px; font-weight:700; color:#4b5563; text-transform:uppercase; letter-spacing:0.5px; }
+.copy-btn { background:#6b7280; color:white; border:none; padding:4px 10px; border-radius:4px; font-size:11px; font-weight:600; cursor:pointer; font-family:inherit; }
+.copy-btn:hover { background:#4b5563; }
+.copy-btn.copied { background:#16a34a; }
+.prompt-text { padding:12px; font-family:'Menlo','Monaco','Consolas',monospace; font-size:12px; color:#1f2937; white-space:pre-wrap; word-break:break-word; line-height:1.5; max-height:300px; overflow-y:auto; }
+.step-row { display:flex; gap:12px; align-items:start; padding:12px; background:white; border:1px solid #e5e7eb; border-radius:6px; margin-bottom:8px; }
+.step-row.checked { background:#f0fdf4; border-color:#86efac; }
+.step-row.blocked { background:#fef2f2; border-color:#fca5a5; }
+.step-check { width:20px; height:20px; border-radius:4px; border:2px solid #d1d5db; display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:2px; font-weight:bold; }
+.step-check.checked { background:#16a34a; border-color:#16a34a; color:white; }
+.step-check.blocked { background:#dc2626; border-color:#dc2626; color:white; }
+.step-num { font-weight:700; color:#6366f1; flex-shrink:0; min-width:24px; }
+.step-content { flex:1; }
+.step-text { color:#1f2937; margin-bottom:6px; }
+.step-note { background:#fffbeb; border-left:3px solid #f59e0b; padding:6px 10px; font-size:13px; color:#78350f; border-radius:3px; white-space:pre-wrap; }
+.screenshots { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:12px; margin-top:12px; }
+.screenshot { border:1px solid #d1d5db; border-radius:6px; overflow:hidden; cursor:pointer; transition:transform 0.15s,box-shadow 0.15s; position:relative; }
+.screenshot:hover { transform:translateY(-2px); box-shadow:0 4px 12px rgba(0,0,0,0.15); }
+.screenshot img { width:100%; height:auto; display:block; }
+.screenshot-name { padding:6px 8px; background:#f3f4f6; font-size:11px; color:#6b7280; word-break:break-all; }
+.fig-label { position:absolute; top:8px; left:8px; background:#4f46e5; color:white; font-size:11px; font-weight:700; padding:3px 8px; border-radius:4px; box-shadow:0 1px 3px rgba(0,0,0,0.3); z-index:2; }
+.lightbox { position:fixed; inset:0; background:rgba(0,0,0,0.9); display:none; align-items:center; justify-content:center; z-index:9999; cursor:zoom-out; padding:20px; }
+.lightbox.open { display:flex; }
+.lightbox img { max-width:100%; max-height:90vh; box-shadow:0 10px 40px rgba(0,0,0,0.5); border-radius:4px; }
+.lightbox-caption { position:absolute; bottom:20px; left:50%; transform:translateX(-50%); color:white; background:rgba(0,0,0,0.7); padding:8px 16px; border-radius:4px; font-size:13px; max-width:80%; text-align:center; word-break:break-all; }
+.lightbox-close { position:absolute; top:20px; right:20px; color:white; background:rgba(0,0,0,0.5); border:none; width:40px; height:40px; border-radius:50%; cursor:pointer; font-size:24px; display:flex; align-items:center; justify-content:center; }
+.lightbox-close:hover { background:rgba(0,0,0,0.8); }
+@media print { body{background:white} .test-case{box-shadow:none;border:1px solid #e5e7eb} .lightbox{display:none !important} }
+</style></head><body>
+<h1>Test Case Report</h1>
+<div class="meta">Generated on ${new Date().toLocaleString()} &middot; ${testCases.length} test cases</div>
+<div class="summary">${STATUS_OPTIONS.map(s=>`<div class="stat stat-${s.value.replace(' ','-')}">${esc(s.value)}: ${counts[s.value]}</div>`).join('')}</div>
+${testCases.map((tc,i) => {
+  const f = findings[tc.__id] || { status:'Not Tested', testedBy:'', notes:'', screenshots:[], stepNotes:{}, stepChecks:{} };
+  const sc = (f.status||'Not Tested').replace(' ','-');
+  const steps = tc.__steps || [];
+  const parts = [];
+  if (f.notes && f.notes.trim()) parts.push(f.notes.trim());
+  const psn = (steps||[]).map((step,idx)=>{
+    const note=(f.stepNotes||{})[idx]; const rs=(f.stepChecks||{})[idx]; const blk=rs==='blocked';
+    const sl=step.replace(/\n/g,' ').trim();
+    if (blk && note && note.trim()) return `On step ${idx+1} (${sl}) — UNABLE TO PROCEED: ${note.trim()}`;
+    if (blk) return `On step ${idx+1} (${sl}) — UNABLE TO PROCEED.`;
+    if (note && note.trim()) return `On step ${idx+1} (${sl}): ${note.trim()}`;
+    return null;
+  }).filter(Boolean);
+  if (psn.length) { if (f.notes && f.notes.trim()) parts.push(''); parts.push(psn.join(' ')); }
+  const has = (f.notes && f.notes.trim()) || psn.length>0;
+  const ptxt = has ? parts.join('\n') : '(No notes recorded for this test case.)';
+  return `<div class="test-case">
+<div class="tc-header"><div><div class="tc-id">${esc(tc['Test ID']||`TC-${i+1}`)} &middot; ${esc(tc.Module||'')}</div><h2 class="tc-title">${esc(tc['Test Case']||'Untitled')}</h2></div><span class="badge badge-${sc}">${esc(f.status||'Not Tested')}</span></div>
+${tc.Persona?`<div class="field"><div class="field-label">Persona</div><div class="field-value">${esc(tc.Persona)}</div></div>`:''}
+${tc['Pre-conditions']?`<div class="field"><div class="field-label">Pre-conditions</div><div class="field-value">${esc(tc['Pre-conditions'])}</div></div>`:''}
+${steps.length>0?`<div class="field"><div class="field-label">Steps</div>${steps.map((step,idx)=>{
+  const rs=(f.stepChecks||{})[idx]; const ss=(rs==='done'||rs===true)?'done':(rs==='blocked'?'blocked':'none');
+  const sn=(f.stepNotes||{})[idx]; const rc=ss==='done'?'checked':(ss==='blocked'?'blocked':''); const cc=rc; const m=ss==='done'?'✓':(ss==='blocked'?'✕':'');
+  return `<div class="step-row ${rc}"><div class="step-check ${cc}">${m}</div><div class="step-num">${idx+1}.</div><div class="step-content"><div class="step-text">${esc(step)}${ss==='blocked'?' <span style="color:#dc2626;font-weight:600;font-size:11px;">(unable to proceed)</span>':''}</div>${sn?`<div class="step-note"><strong>Note:</strong> ${esc(sn)}</div>`:''}</div></div>`;
+}).join('')}</div>`:''}
+${tc['Expected Result']?`<div class="field"><div class="field-label">Expected Result</div><div class="field-value">${esc(tc['Expected Result'])}</div></div>`:''}
+<div class="findings"><div class="findings-title">Tester Findings</div>
+${f.testedBy?`<div class="field"><div class="field-label">Tested By</div><div class="field-value">${esc(f.testedBy)}</div></div>`:''}
+<div class="field"><div class="field-label">Overall Notes</div><div class="field-value">${esc(f.notes)||'<em style="color:#9ca3af">No notes</em>'}</div></div>
+${f.screenshots&&f.screenshots.length>0?`<div class="field-label">Screenshots (${f.screenshots.length})</div><div class="screenshots">${f.screenshots.map((s,sidx)=>`<div class="screenshot" data-src="${s.data}" data-name="${esc(s.name)}" data-fig="Fig. ${sidx+1}"><div class="fig-label">Fig. ${sidx+1}</div><img src="${s.data}" alt="${esc(s.name)}"><div class="screenshot-name">${esc(s.name)}</div></div>`).join('')}</div>`:''}
+<div class="field" style="margin-top:12px;"><div class="field-label">Final Status</div><div class="field-value"><span class="badge badge-${sc}">${esc(f.status||'Not Tested')}</span></div></div>
+<div class="prompt-block"><div class="prompt-header"><span class="prompt-label">📋 Copy-paste prompt for Claude / dev chat</span><button class="copy-btn" data-target="prompt-${i}">Copy</button></div><div class="prompt-text" id="prompt-${i}">${esc(ptxt)}</div></div>
+</div></div>`;
+}).join('')}
+<div class="lightbox" id="lightbox" onclick="closeLightbox(event)"><button class="lightbox-close" onclick="closeLightbox(event)">&times;</button><img id="lightbox-img" src="" alt=""><div class="lightbox-caption" id="lightbox-caption"></div></div>
+<script>
+(function(){var lb=document.getElementById('lightbox'),li=document.getElementById('lightbox-img'),lc=document.getElementById('lightbox-caption');
+document.querySelectorAll('.screenshot').forEach(function(el){el.addEventListener('click',function(){li.src=el.getAttribute('data-src');var f=el.getAttribute('data-fig'),n=el.getAttribute('data-name');lc.textContent=f?(f+' — '+n):n;lb.classList.add('open');});});
+window.closeLightbox=function(e){if(e.target===lb||e.target.classList.contains('lightbox-close')||e.target.tagName==='BUTTON'){lb.classList.remove('open');li.src='';}};
+document.addEventListener('keydown',function(e){if(e.key==='Escape'&&lb.classList.contains('open')){lb.classList.remove('open');li.src='';}});
+document.querySelectorAll('.copy-btn').forEach(function(b){b.addEventListener('click',function(){var t=document.getElementById(b.getAttribute('data-target'));if(!t)return;var x=t.textContent||t.innerText,o=b.textContent,d=function(){b.textContent='✓ Copied';b.classList.add('copied');setTimeout(function(){b.textContent=o;b.classList.remove('copied');},2000);};if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(x).then(d).catch(function(){var ta=document.createElement('textarea');ta.value=x;document.body.appendChild(ta);ta.select();try{document.execCommand('copy');d();}catch(e){}document.body.removeChild(ta);});}else{var ta=document.createElement('textarea');ta.value=x;document.body.appendChild(ta);ta.select();try{document.execCommand('copy');d();}catch(e){}document.body.removeChild(ta);}});});
+})();
+<\/script></body></html>`;
+      const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = `test-case-report-${new Date().toISOString().split('T')[0]}.html`;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      setShowExportMenu(false);
+    } catch (err) { alert('Export failed: ' + err.message); }
+  };
+
+  const exportCSV = () => {
+    try {
+      const rows = testCases.map((tc,i) => {
+        const f = findings[tc.__id] || {};
+        const sn = (f.screenshots||[]).map((s,idx) => `${tc['Test ID']||`TC-${i+1}`}_${idx+1}_${s.name}`).join('; ');
+        const stn = (tc.__steps||[]).map((step,idx) => {
+          const rs = (f.stepChecks||{})[idx];
+          const m = (rs==='done'||rs===true)?'[✓]':(rs==='blocked'?'[✕ blocked]':'[ ]');
+          const note = (f.stepNotes||{})[idx]||'';
+          return `${m} Step ${idx+1}${note?': '+note:''}`;
+        }).join('\n');
+        const { __id, __steps, ...c } = tc;
+        return { ...c, Status: f.status||'Not Tested', 'Tested By': f.testedBy||'', Notes: f.notes||'', 'Step Notes': stn, Screenshots: sn };
+      });
+      const csv = Papa.unparse(rows);
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = `test-case-findings-${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      testCases.forEach((tc,i) => {
+        const f = findings[tc.__id]; if (!f?.screenshots) return;
+        f.screenshots.forEach((shot,idx) => {
+          const a2 = document.createElement('a');
+          a2.href = shot.data; a2.download = `${tc['Test ID']||`TC-${i+1}`}_${idx+1}_${shot.name}`;
+          document.body.appendChild(a2); a2.click(); document.body.removeChild(a2);
+        });
+      });
+      setShowExportMenu(false);
+    } catch (err) { alert('CSV export failed: ' + err.message); }
+  };
+
+  const filteredCases = testCases.filter(tc => {
+    const s = findings[tc.__id]?.status || 'Not Tested';
+    if (filterStatus !== 'All' && s !== filterStatus) return false;
+    if (!search) return true;
+    const q = search.toLowerCase();
+    return (tc['Test ID']||'').toLowerCase().includes(q) || (tc['Test Case']||'').toLowerCase().includes(q) || (tc.Module||'').toLowerCase().includes(q);
+  });
+
+  const currentCase = testCases[currentIdx];
+  const currentFinding = currentCase ? (findings[currentCase.__id] || { status:'Not Tested', testedBy:'', notes:'', screenshots:[], stepNotes:{}, stepChecks:{} }) : null;
+  const statusCounts = STATUS_OPTIONS.reduce((a,s) => { a[s.value] = testCases.filter(t => (findings[t.__id]?.status||'Not Tested')===s.value).length; return a; }, {});
+  const completed = testCases.length - statusCounts['Not Tested'];
+
+  useEffect(() => { if (pageRef.current) pageRef.current.scrollTop = 0; }, [currentIdx]);
+
+  if (!loaded) return <div className="min-h-screen flex items-center justify-center bg-gray-950"><div className="text-gray-400">Loading...</div></div>;
+
+  if (testCases.length === 0 || showUploadScreen) {
+    return <UploadScreen
+      onLoad={(file, list) => { handleFile(file, list); setShowUploadScreen(false); }}
+      fileInputRef={fileInputRef}
+      hasExistingData={testCases.length > 0}
+      onBack={() => setShowUploadScreen(false)}
+      existingTesters={testers}
+    />;
+  }
+
+  const statusCfg = getStatusConfig(currentFinding?.status);
+  const steps = currentCase.__steps || [];
+  const getStepState = (idx) => { const v = (currentFinding.stepChecks||{})[idx]; if (v==='done'||v===true) return 'done'; if (v==='blocked') return 'blocked'; return 'none'; };
+  const stepsChecked = steps.filter((_,idx) => getStepState(idx)==='done').length;
+  const stepsBlocked = steps.filter((_,idx) => getStepState(idx)==='blocked').length;
+
+  return (
+    <div className="h-screen flex bg-gray-950 overflow-hidden text-gray-100">
+      <div className={`${sidebarOpen ? 'w-80' : 'w-0'} transition-all duration-200 bg-gray-900 border-r border-gray-800 flex flex-col overflow-hidden flex-shrink-0`}>
+        <div className="p-4 border-b border-gray-800">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <button onClick={() => setSidebarOpen(false)} className="p-1 hover:bg-gray-800 rounded-md" title="Collapse sidebar">
+                <PanelLeftClose className="w-4 h-4 text-gray-400" />
+              </button>
+              <h2 className="font-bold text-gray-100">Test Cases</h2>
+            </div>
+            <span className="text-xs text-gray-400">{completed} / {testCases.length} done</span>
+          </div>
+          <div className="w-full bg-gray-800 rounded-full h-1.5 mb-3">
+            <div className="bg-indigo-500 h-1.5 rounded-full transition-all" style={{ width: `${(completed/testCases.length)*100}%` }} />
+          </div>
+          <div className="relative">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+            <input type="text" placeholder="Search..." value={search} onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-9 pr-3 py-2 text-sm bg-gray-800 border border-gray-700 text-gray-100 placeholder-gray-500 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent" />
+          </div>
+          <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}
+            className="dark-select w-full mt-2 px-3 py-2 text-sm bg-gray-800 border border-gray-700 text-gray-100 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <option value="All">All Statuses ({testCases.length})</option>
+            {STATUS_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.value} ({statusCounts[s.value]})</option>)}
+          </select>
+        </div>
+        <div className="flex-1 overflow-y-auto">
+          {filteredCases.map((tc) => {
+            const realIdx = testCases.indexOf(tc);
+            const f = findings[tc.__id] || {};
+            const cfg = getStatusConfig(f.status);
+            const isActive = realIdx === currentIdx;
+            return (
+              <button key={tc.__id} onClick={() => setCurrentIdx(realIdx)}
+                className={`w-full text-left px-4 py-3 border-b border-gray-800 hover:bg-gray-800 transition-colors ${isActive ? 'bg-indigo-950/50 border-l-4 border-l-indigo-500' : 'border-l-4 border-l-transparent'}`}>
+                <div className="flex items-start gap-2">
+                  <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${cfg.dot}`} />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <span className="text-xs font-mono text-gray-400">{tc['Test ID']}</span>
+                      {tc.Module && <span className="text-xs text-gray-500 truncate">{tc.Module}</span>}
+                    </div>
+                    <div className={`text-sm truncate ${isActive ? 'font-semibold text-indigo-300' : 'text-gray-200'}`}>{tc['Test Case']||'Untitled'}</div>
+                  </div>
+                </div>
+              </button>
+            );
+          })}
+          {filteredCases.length === 0 && <div className="p-6 text-center text-sm text-gray-500">No matching test cases</div>}
+        </div>
+        {testers.length > 0 && (
+          <div className="p-3 border-t border-gray-800 text-xs text-gray-400">
+            <Users className="w-3 h-3 inline mr-1" />{testers.length} tester{testers.length!==1?'s':''}: {testers.join(', ')}
+          </div>
+        )}
+      </div>
+
+      <div className="flex-1 flex flex-col min-w-0">
+        <div className="bg-gray-900 border-b border-gray-800 px-4 py-3 flex items-center gap-3 flex-shrink-0">
+          {!sidebarOpen && (
+            <button onClick={() => setSidebarOpen(true)} className="p-2 hover:bg-gray-800 rounded-md" title="Show test cases">
+              <PanelLeftOpen className="w-5 h-5 text-gray-300" />
+            </button>
+          )}
+          <div className="flex-1 min-w-0 flex items-center gap-3">
+            <span className="text-xs font-mono bg-indigo-950/60 text-indigo-300 px-2 py-1 rounded border border-indigo-800 flex-shrink-0">{currentCase['Test ID']}</span>
+            <div className="min-w-0 flex-1">
+              <div className="text-base font-semibold text-gray-100 truncate">{currentCase['Test Case']||'Untitled'}</div>
+              {currentCase.Module && <div className="text-xs text-gray-400 truncate">{currentCase.Module}</div>}
+            </div>
+            <span className={`hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border flex-shrink-0 ${statusCfg.color}`}>
+              <statusCfg.icon className="w-3.5 h-3.5" />{currentFinding.status}
+            </span>
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <span className="text-xs text-gray-500 hidden md:inline">{currentIdx+1} / {testCases.length}</span>
+            <button onClick={() => setCurrentIdx(Math.max(0,currentIdx-1))} disabled={currentIdx===0} className="p-2 text-gray-300 hover:bg-gray-800 rounded-md disabled:opacity-30 disabled:cursor-not-allowed"><ChevronLeft className="w-5 h-5"/></button>
+            <button onClick={() => setCurrentIdx(Math.min(testCases.length-1,currentIdx+1))} disabled={currentIdx===testCases.length-1} className="p-2 text-gray-300 hover:bg-gray-800 rounded-md disabled:opacity-30 disabled:cursor-not-allowed"><ChevronRight className="w-5 h-5"/></button>
+            <div className="w-px h-6 bg-gray-700 mx-1" />
+            <button onClick={() => setShowUploadScreen(true)} title="Back to upload screen" className="p-2 text-gray-300 hover:bg-gray-800 hover:text-indigo-400 rounded-md transition-colors"><Home className="w-5 h-5"/></button>
+            <button onClick={() => setShowResetConfirm(true)} title="Reset all data" className="p-2 text-gray-300 hover:bg-red-950 hover:text-red-400 rounded-md transition-colors"><RotateCcw className="w-5 h-5"/></button>
+            <div className="w-px h-6 bg-gray-700 mx-1" />
+            <div className="relative">
+              <button onClick={() => setShowExportMenu(!showExportMenu)} className="flex items-center gap-2 px-3 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md hover:bg-indigo-500"><Download className="w-4 h-4"/>Export</button>
+              {showExportMenu && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setShowExportMenu(false)} />
+                  <div className="absolute right-0 top-full mt-1 bg-gray-800 border border-gray-700 rounded-md shadow-xl z-20 w-56">
+                    <button onClick={exportHTML} className="w-full text-left px-4 py-2.5 text-sm text-gray-100 hover:bg-gray-700 flex items-center gap-2"><FileText className="w-4 h-4 text-indigo-400"/><div><div className="font-medium">HTML Report</div><div className="text-xs text-gray-400">With embedded screenshots</div></div></button>
+                    <button onClick={exportCSV} className="w-full text-left px-4 py-2.5 text-sm text-gray-100 hover:bg-gray-700 flex items-center gap-2 border-t border-gray-700"><FileDown className="w-4 h-4 text-indigo-400"/><div><div className="font-medium">CSV + Screenshots</div><div className="text-xs text-gray-400">Findings CSV + image files</div></div></button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div ref={pageRef} className="flex-1 overflow-hidden">
+          <div className="split-container h-full flex flex-col gap-3 p-3 overflow-y-auto">
+            <div className="split-column flex-1 min-w-0">
+              <div className="bg-gray-900 rounded-lg border border-gray-800 shadow-sm overflow-hidden">
+                <div className="p-5 space-y-4">
+                  {(currentCase.Persona || currentCase['Pre-conditions']) && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {currentCase.Persona && <Field label="Persona" value={currentCase.Persona} />}
+                      {currentCase['Pre-conditions'] && <Field label="Pre-conditions" value={currentCase['Pre-conditions']} />}
+                    </div>
+                  )}
+                  {steps.length === 0 && currentCase.Steps && <Field label="Steps (raw — parser found no steps)" value={currentCase.Steps} />}
+                  {steps.length > 0 && (
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="text-xs font-semibold uppercase tracking-wider text-gray-400">Steps Checklist</div>
+                        <div className="text-xs text-gray-400">{stepsChecked} done{stepsBlocked>0?<span className="text-red-400"> · {stepsBlocked} blocked</span>:null} · {steps.length} total</div>
+                      </div>
+                      <div className="space-y-1.5">
+                        {steps.map((step, idx) => {
+                          const state = getStepState(idx);
+                          const checked = state === 'done';
+                          const blocked = state === 'blocked';
+                          const note = (currentFinding.stepNotes||{})[idx] || '';
+                          const noteOpen = (currentFinding.stepNoteOpen||{})[idx];
+                          const showNoteField = noteOpen || note.length > 0;
+                          const rowBg = checked ? 'bg-green-950/40 border-green-800' : blocked ? 'bg-red-950/40 border-red-800' : 'border-gray-700';
+                          return (
+                            <div key={idx} className={`group/step border rounded-md px-3 py-2 transition-colors ${rowBg}`} style={(!checked&&!blocked)?{backgroundColor:'rgb(20 24 35)'}:{}}>
+                              <div className="flex items-start gap-2">
+                                <span className="font-bold text-indigo-400 flex-shrink-0 text-sm leading-relaxed">{idx+1}.</span>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-start gap-2">
+                                    <span className={`text-sm whitespace-pre-wrap flex-1 leading-relaxed ${checked?'text-gray-400':blocked?'text-red-200':'text-gray-100'}`}>{step}</span>
+                                    {!showNoteField && (
+                                      <button onClick={() => updateFinding(currentCase.__id, 'stepNoteOpen', { ...(currentFinding.stepNoteOpen||{}), [idx]: true })}
+                                        className="flex-shrink-0 p-1 text-gray-500 opacity-0 group-hover/step:opacity-100 hover:text-indigo-400 hover:bg-gray-800 rounded transition-all" title="Add note">
+                                        <Pencil className="w-3.5 h-3.5"/>
+                                      </button>
+                                    )}
+                                  </div>
+                                  {showNoteField && (
+                                    <div className="relative mt-1.5">
+                                      <textarea value={note} onChange={(e) => updateStepNote(currentCase.__id, idx, e.target.value)}
+                                        placeholder="Notes for this step..." rows={1} autoFocus={noteOpen && !note}
+                                        className="w-full px-2 py-1 pr-7 text-sm bg-gray-900 border border-gray-700 text-gray-100 placeholder-gray-500 rounded focus:outline-none focus:ring-1 focus:ring-indigo-400 focus:border-indigo-400 resize-y" />
+                                      {!note && (
+                                        <button onClick={() => updateFinding(currentCase.__id, 'stepNoteOpen', { ...(currentFinding.stepNoteOpen||{}), [idx]: false })}
+                                          className="absolute top-1 right-1 p-0.5 text-gray-500 hover:text-gray-300 rounded" title="Hide note field"><X className="w-3 h-3"/></button>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="flex flex-col gap-1 flex-shrink-0 ml-1">
+                                  <button onClick={() => toggleStepCheck(currentCase.__id, idx)}
+                                    className={`step-btn rounded-md border-2 flex items-center justify-center transition-all ${checked?'bg-green-600 border-green-600 text-white hover:bg-green-500':'border-gray-600 hover:border-green-500 hover:bg-green-950/40'}`}
+                                    style={{width:'26px',height:'26px'}} title={checked?'Click to uncheck':'Mark as done'}>
+                                    <CheckCircle2 className={`w-4 h-4 ${checked?'':'step-btn-preview text-green-500'}`}/>
+                                  </button>
+                                  <button onClick={() => {
+                                    setFindings(prev => {
+                                      const c = prev[currentCase.__id] || { status:'Not Tested', testedBy:'', notes:'', screenshots:[], stepNotes:{}, stepChecks:{} };
+                                      const nc = { ...(c.stepChecks||{}) };
+                                      if (blocked) delete nc[idx]; else nc[idx] = 'blocked';
+                                      return { ...prev, [currentCase.__id]: { ...c, stepChecks: nc } };
+                                    });
+                                  }} className={`step-btn rounded-md border-2 flex items-center justify-center transition-all ${blocked?'bg-red-600 border-red-600 text-white hover:bg-red-500':'border-gray-600 hover:border-red-500 hover:bg-red-950/40'}`}
+                                    style={{width:'26px',height:'26px'}} title={blocked?'Click to clear':'Mark as unable to proceed'}>
+                                    <X className={`w-4 h-4 ${blocked?'':'step-btn-preview text-red-500'}`}/>
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                  {currentCase['Expected Result'] && (
+                    <div>
+                      <div className="text-xs font-bold uppercase tracking-wider text-amber-400 mb-1.5 flex items-center gap-1.5">
+                        <CheckCircle2 className="w-3.5 h-3.5"/>Expected Result
+                      </div>
+                      <div className="text-sm whitespace-pre-wrap bg-amber-950/30 border-l-4 border-amber-500 px-3 py-2 rounded text-amber-100">
+                        {currentCase['Expected Result']}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="split-column flex-1 min-w-0">
+              <div className="bg-gray-900 rounded-lg border border-gray-800 shadow-sm overflow-hidden">
+                <div className="px-5 py-3 border-b border-gray-800 sticky top-0 z-10" style={{backgroundColor:'rgb(20 24 35)'}}>
+                  <h2 className="font-bold text-gray-100">Findings</h2>
+                </div>
+                <div className="p-5 space-y-4 divide-y divide-gray-800/60">
+                  <div>
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1.5">Tested By</label>
+                    {testers.length > 0 ? (
+                      <select value={currentFinding.testedBy} onChange={(e) => handleTesterChange(currentCase.__id, e.target.value)}
+                        className="dark-select w-full px-3 py-2 bg-gray-800 border border-gray-700 text-gray-100 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <option value="">— Select tester —</option>
+                        {testers.map(t => <option key={t} value={t}>{t}</option>)}
+                      </select>
+                    ) : (
+                      <input type="text" value={currentFinding.testedBy} onChange={(e) => handleTesterChange(currentCase.__id, e.target.value)} placeholder="Your name"
+                        className="w-full px-3 py-2 bg-gray-800 border border-gray-700 text-gray-100 placeholder-gray-500 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent" />
+                    )}
+                  </div>
+                  <div className="pt-4">
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1.5">Overall Notes</label>
+                    <textarea value={currentFinding.notes} onChange={(e) => updateFinding(currentCase.__id, 'notes', e.target.value)} rows={4}
+                      placeholder="Overall observations, summary of issues found, deviations from expected result..."
+                      className="w-full px-3 py-2 bg-gray-800 border border-gray-700 text-gray-100 placeholder-gray-500 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-y" />
+                  </div>
+                  <div className="pt-4">
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1.5">
+                      Screenshots {currentFinding.screenshots.length>0 && <span className="normal-case font-normal text-gray-500">({currentFinding.screenshots.length})</span>}
+                    </label>
+                    <div onClick={() => screenshotInputRef.current?.click()}
+                      onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add('border-indigo-500','bg-indigo-950/30'); }}
+                      onDragLeave={(e) => { e.currentTarget.classList.remove('border-indigo-500','bg-indigo-950/30'); }}
+                      onDrop={(e) => { e.preventDefault(); e.currentTarget.classList.remove('border-indigo-500','bg-indigo-950/30'); if (e.dataTransfer.files.length>0) addScreenshots(currentCase.__id, e.dataTransfer.files); }}
+                      className="border-2 border-dashed border-gray-700 rounded-md p-5 text-center cursor-pointer hover:border-indigo-500 hover:bg-indigo-950/20 transition-all">
+                      <ImageIcon className="w-7 h-7 text-gray-500 mx-auto mb-1.5"/>
+                      <p className="text-sm text-gray-300">Click, drag, or paste screenshots</p>
+                      <p className="text-xs text-gray-500 mt-0.5">💡 Tip: paste with Ctrl/Cmd+V</p>
+                      <input ref={screenshotInputRef} type="file" accept="image/*" multiple className="hidden"
+                        onChange={(e) => { if (e.target.files.length>0) addScreenshots(currentCase.__id, e.target.files); e.target.value=''; }} />
+                    </div>
+                    {currentFinding.screenshots.length > 0 && (
+                      <div className="grid grid-cols-2 gap-2 mt-2">
+                        {currentFinding.screenshots.map((shot, idx) => (
+                          <div key={idx} className="relative group border border-gray-700 rounded-md overflow-hidden bg-gray-800">
+                            <div className="absolute top-1.5 left-1.5 z-10 bg-indigo-600 text-white text-xs font-bold px-1.5 py-0.5 rounded shadow-md">Fig. {idx+1}</div>
+                            <img src={shot.data} alt={shot.name} className="w-full h-28 object-cover"/>
+                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/60 transition-colors flex items-center justify-center">
+                              <button onClick={() => removeScreenshot(currentCase.__id, idx)} className="opacity-0 group-hover:opacity-100 bg-red-600 text-white p-1.5 rounded-full hover:bg-red-500 transition-all">
+                                <Trash2 className="w-3.5 h-3.5"/>
+                              </button>
+                            </div>
+                            <div className="px-1.5 py-0.5 text-[11px] text-gray-400 truncate bg-gray-900 border-t border-gray-700">{shot.name}</div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div className="pt-4">
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1.5">Final Status</label>
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {STATUS_OPTIONS.map(s => {
+                        const Ic = s.icon;
+                        const sel = currentFinding.status === s.value;
+                        return (
+                          <button key={s.value} onClick={() => updateFinding(currentCase.__id, 'status', s.value)}
+                            className={`flex items-center justify-center gap-1 px-2 py-2 rounded-md text-xs font-medium border transition-all ${sel?s.color+' ring-2 ring-offset-1 ring-offset-gray-900 ring-indigo-400':'bg-gray-800 text-gray-300 border-gray-700 hover:bg-gray-700'}`}>
+                            <Ic className="w-3.5 h-3.5 flex-shrink-0"/><span className="truncate">{s.value}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <div className="flex justify-between pt-4">
+                    <button onClick={() => setCurrentIdx(Math.max(0,currentIdx-1))} disabled={currentIdx===0}
+                      className="flex items-center gap-2 px-4 py-2 bg-gray-800 border border-gray-700 text-gray-200 rounded-md hover:bg-gray-700 disabled:opacity-30 disabled:cursor-not-allowed font-medium text-sm">
+                      <ChevronLeft className="w-4 h-4"/> Previous
+                    </button>
+                    <button onClick={() => setCurrentIdx(Math.min(testCases.length-1,currentIdx+1))} disabled={currentIdx===testCases.length-1}
+                      className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-500 disabled:opacity-30 disabled:cursor-not-allowed font-medium text-sm">
+                      Next <ChevronRight className="w-4 h-4"/>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {showResetConfirm && (
+        <div className="fixed top-0 left-0 right-0 bottom-0 flex items-center justify-center p-4" style={{zIndex:99999,backgroundColor:'rgba(0,0,0,0.75)'}} onClick={() => setShowResetConfirm(false)}>
+          <div className="bg-gray-900 rounded-lg shadow-2xl max-w-md w-full overflow-hidden border-2 border-red-700" onClick={(e) => e.stopPropagation()}>
+            <div className="p-6">
+              <div className="flex items-start gap-3 mb-4">
+                <div className="flex-shrink-0 w-10 h-10 bg-red-950 rounded-full flex items-center justify-center border border-red-800"><AlertCircle className="w-5 h-5 text-red-400"/></div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-bold text-gray-100 mb-1">Reset all data?</h3>
+                  <p className="text-sm text-gray-400">This will permanently delete everything from your current session.</p>
+                </div>
+              </div>
+              <ul className="text-sm text-gray-300 space-y-1 mb-5" style={{paddingLeft:'52px'}}>
+                <li>• All {testCases.length} test cases</li>
+                <li>• All findings, notes, and step checkboxes</li>
+                <li>• All uploaded screenshots</li>
+                <li>• Tester names ({testers.length})</li>
+              </ul>
+              <div className="bg-amber-950/40 border border-amber-800 rounded-md p-3 text-sm text-amber-300 mb-5">
+                <strong>This cannot be undone.</strong> Consider exporting your findings first if you want to keep them.
+              </div>
+              <div className="flex justify-between gap-2">
+                <button onClick={doReset} className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-500 font-medium text-sm">Yes, reset everything</button>
+                <button onClick={() => setShowResetConfirm(false)} className="px-4 py-2 bg-gray-800 border border-gray-700 text-gray-200 rounded-md hover:bg-gray-700 font-medium text-sm">Cancel</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function UploadScreen({ onLoad, fileInputRef, hasExistingData, onBack, existingTesters }) {
+  const [testerInput, setTesterInput] = useState('');
+  const [testerList, setTesterList] = useState(existingTesters || []);
+  const [pendingFile, setPendingFile] = useState(null);
+
+  const addTester = () => {
+    const raw = testerInput.trim(); if (!raw) return;
+    const names = raw.split(',').map(n => n.trim()).filter(n => n.length>0);
+    const newOnes = names.filter(n => !testerList.includes(n));
+    if (newOnes.length>0) setTesterList([...testerList, ...newOnes]);
+    setTesterInput('');
+  };
+  const removeTester = (n) => setTesterList(testerList.filter(t => t !== n));
+  const proceed = () => { if (pendingFile) onLoad(pendingFile, testerList); };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-indigo-950 flex items-center justify-center p-6">
+      <div className="max-w-2xl w-full">
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-indigo-600 rounded-2xl mb-4 shadow-lg shadow-indigo-900/50"><FileText className="w-8 h-8 text-white"/></div>
+          <h1 className="text-3xl font-bold text-gray-100 mb-2">Test Case Report Compiler</h1>
+          {!hasExistingData && <p className="text-gray-400">Set up testers, then upload your UAT test plan CSV.</p>}
+        </div>
+        {hasExistingData && (
+          <div className="bg-amber-950/40 border border-amber-800 rounded-lg p-3 mb-4 text-sm text-amber-300">
+            <strong>Heads up:</strong> Uploading a new CSV will replace your current test cases and findings. Use the button below to return to your session.
+          </div>
+        )}
+        <div onClick={() => !pendingFile && fileInputRef.current?.click()}
+          onDragOver={(e) => { e.preventDefault(); if (!pendingFile) e.currentTarget.classList.add('border-indigo-500','bg-indigo-950/30'); }}
+          onDragLeave={(e) => e.currentTarget.classList.remove('border-indigo-500','bg-indigo-950/30')}
+          onDrop={(e) => { e.preventDefault(); e.currentTarget.classList.remove('border-indigo-500','bg-indigo-950/30'); if (e.dataTransfer.files[0]) setPendingFile(e.dataTransfer.files[0]); }}
+          className={`bg-gray-900 border-2 border-dashed rounded-2xl p-10 text-center transition-all shadow-sm mb-4 ${pendingFile?'border-green-600 bg-green-950/20':'border-gray-700 cursor-pointer hover:border-indigo-500 hover:bg-indigo-950/20'}`}>
+          {pendingFile ? (
+            <>
+              <CheckCircle2 className="w-12 h-12 text-green-500 mx-auto mb-3"/>
+              <p className="text-lg font-medium text-gray-100 mb-1">{pendingFile.name}</p>
+              <p className="text-sm text-gray-400 mb-4">{(pendingFile.size/1024).toFixed(1)} KB</p>
+              <div className="flex gap-2 justify-center">
+                <button onClick={(e) => { e.stopPropagation(); setPendingFile(null); }} className="px-4 py-2 bg-gray-800 border border-gray-700 text-gray-200 rounded-md hover:bg-gray-700 text-sm font-medium">Choose different file</button>
+                <button onClick={(e) => { e.stopPropagation(); proceed(); }} className="px-6 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-500 text-sm font-medium">Start Testing →</button>
+              </div>
+            </>
+          ) : (
+            <>
+              <Upload className="w-12 h-12 text-gray-500 mx-auto mb-3"/>
+              <p className="text-lg font-medium text-gray-200 mb-1">Drop your CSV file here</p>
+              <p className="text-sm text-gray-400">or click to browse</p>
+              <input ref={fileInputRef} type="file" accept=".csv" className="hidden" onChange={(e) => setPendingFile(e.target.files[0])}/>
+            </>
+          )}
+        </div>
+        <div className="text-xs text-gray-500 text-center mb-4">
+          Expected columns: Module, Test ID, Test Case, Persona, Steps, Expected Result, Pre-conditions, Status, Tested By, Notes
+        </div>
+        {hasExistingData && (
+          <button onClick={onBack} className="w-full mb-4 flex items-center justify-center gap-2 px-4 py-3 bg-gray-900 border-2 border-indigo-700 text-indigo-300 rounded-lg hover:bg-indigo-950/40 hover:border-indigo-500 transition-all font-semibold shadow-sm">
+            <ChevronLeft className="w-5 h-5"/>Back to current session
+          </button>
+        )}
+        <div className="bg-gray-900 rounded-xl p-6 border border-gray-800 shadow-sm mb-4">
+          <div className="flex items-center gap-2 mb-3"><Users className="w-5 h-5 text-indigo-400"/><h2 className="font-semibold text-gray-100">Tester Names <span className="text-sm font-normal text-gray-400">(optional)</span></h2></div>
+          <p className="text-sm text-gray-400 mb-3">Add one or more tester names. You'll be able to pick from this list on each test case page.</p>
+          <div className="flex gap-2 mb-3">
+            <input type="text" value={testerInput} onChange={(e) => setTesterInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key==='Enter') { e.preventDefault(); addTester(); } }}
+              placeholder="Enter name(s), comma-separated (e.g. Alice, Bob, Carol)"
+              className="flex-1 px-3 py-2 bg-gray-800 border border-gray-700 text-gray-100 placeholder-gray-500 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent" />
+            <button onClick={addTester} disabled={!testerInput.trim()} className="flex items-center gap-1 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed font-medium text-sm">
+              <Plus className="w-4 h-4"/> Add
+            </button>
+          </div>
+          {testerList.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {testerList.map(n => (
+                <span key={n} className="inline-flex items-center gap-1.5 bg-indigo-950/60 text-indigo-300 px-3 py-1 rounded-full text-sm font-medium border border-indigo-800">
+                  {n}<button onClick={() => removeTester(n)} className="hover:bg-indigo-800 rounded-full p-0.5"><X className="w-3 h-3"/></button>
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Field({ label, value, highlight }) {
+  return (
+    <div>
+      <div className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1">{label}</div>
+      <div className={`text-sm whitespace-pre-wrap ${highlight?'bg-amber-950/30 border-l-4 border-amber-500 px-3 py-2 rounded text-amber-100':'text-gray-200'}`}>{value}</div>
+    </div>
+  );
+}
+
+// Mount
+window.addEventListener('load', () => {
+  setTimeout(() => {
+    const loading = document.getElementById('loading');
+    if (loading) loading.style.display = 'none';
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  }, 100);
+});
+</script>
+</body>
+</html>
