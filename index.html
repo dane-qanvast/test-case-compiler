@@ -100,6 +100,134 @@ const makeFinding = (overrides = {}) => ({
 // Rebuild canonical numbered `Steps` string from an array.
 const stepsToText = (arr) => (arr || []).map((s, n) => `${n + 1}. ${s}`).join('\n');
 
+// Prompt for users to paste into Claude/ChatGPT to generate a CSV that fits this app's schema.
+const CSV_GENERATION_PROMPT = `You are generating a User Acceptance Testing (UAT) plan as a CSV file. The CSV will be reviewed by non-technical stakeholders (product owners, QA, business users) and executed manually by testers. Follow the rules below exactly. Consistency across UAT sheets matters more than cleverness — these conventions exist so any tester on any team can pick up the sheet and execute it without translation.
+
+## OUTPUT FORMAT
+
+Output ONE CSV file and nothing else — no preamble, no explanation, no markdown fences. The first row is the header, exactly:
+
+Module,Test ID,Test Case,Persona,Steps,Expected Result,Pre-conditions,Status,Tested By,Notes
+
+Every subsequent row is one test case. CSV rules:
+- Comma-separated. Quote any field that contains a comma, newline, or double quote.
+- Inside quoted fields, escape double quotes by doubling them (\`""\`).
+- Newlines inside Steps / Expected Result / Pre-conditions cells are real newline characters inside the quoted field. Multi-line cells are normal — Steps almost always spans multiple lines.
+- Leave Status, Tested By, and Notes EMPTY (trailing commas on every row). Those are filled in by testers, not by the author.
+
+## COLUMN DEFINITIONS
+
+**Module** — A phase/epic/feature-area label in ALL CAPS, using an em-dash (\`—\`) separator. Format: \`<PHASE OR RELEASE> — <FEATURE AREA>\`, optionally with a ticket/spec code: \`<PHASE> — <TICKET-CODE> <FEATURE AREA>\`. Examples of the shape (not the content — substitute your own):
+- \`PHASE 2 — USER ONBOARDING\`
+- \`RELEASE 4.1 — PAYMENTS\`
+- \`SPRINT 12 — AUTH-204 SSO LOGIN\`
+- \`V2 — NOTIFICATIONS MATRIX\`
+Group related tests under the same Module value across consecutive rows; do not skip back and forth.
+
+**Test ID** — \`TC-<n>\` starting at TC-1 and incrementing sequentially across the entire sheet (does NOT reset per module). If the requester supplies a starting number, continue from there.
+
+**Test Case** — A one-line title (no period at the end) that names WHAT is being verified, not how. Be specific and dense:
+- Good: \`Read-only role sees dashboard but cannot click "Edit"\`
+- Good: \`Per-tenant numbering — independent invoice sequences\`
+- Good: \`Picker shows in checkout dialog + persists chosen option\`
+- Bad: \`Test that the dashboard is read-only\` (verbose, says "test that")
+- Use \`→\` for sequence, \`+\` to join multiple verified things in one test, \`—\` (em-dash) to attach a qualifier or scope. Reference spec/ticket codes (NF5, AUTH-204, E2) when relevant.
+
+**Persona** — Who performs the test. Use the role label, or a real test account name when one is established for that role in your APP CONTEXT. Combine with \`&\` when a test crosses roles (e.g. \`Admin & Member\`). If specific test accounts exist (e.g. "Alice = Admin"), name them inside Steps, but keep Persona at the role level.
+
+**Steps** — A numbered list, one step per line, beginning each line with \`<n>. \` (digit, period, space). Style rules:
+- Imperative voice: \`Click\`, \`Open\`, \`Toggle\`, \`Pick\`, \`Confirm\`. Never \`You should click\`.
+- Concrete UI paths use \`→\` between breadcrumbs: \`Settings → Team → Members → "Invite"\`.
+- Quote literal UI text in double quotes (which become \`""\` in the CSV cell): the button label, toggle label, dropdown value, banner text.
+- Reference values explicitly: \`Set prefix to "TEST-"\`, \`Set date 1-2 minutes in the future\`.
+- Inline edge-case probes count as steps: \`Try to delete the only admin. Confirm BLOCKED with clear error.\`
+- Negative sanity checks go at the end with a \`Sanity check:\` prefix when verifying that something does NOT happen in a related context (e.g. single-tenant app shows no picker).
+- Tests that chain off another test reference it directly: \`(uses TC-2 setup)\`, \`Open record from TC-7\`.
+
+**Expected Result** — Prose, not a list. Describe the observable outcome in 1–3 sentences. Style rules:
+- Lead with the success state, then qualifying detail.
+- When a step has multiple branches (ON/OFF, A/B, default/non-default), cover each: \`With flag ON: redirects to onboarding. With OFF: redirects to dashboard.\`
+- Use SHOUTY caps sparingly for emphasis on critical invariants: \`BLOCKED\`, \`ALWAYS\`, \`NOT changed retroactively\`, \`regardless of toggle\`.
+- Quote literal UI strings the tester should see (banner copy, button text, toast text, error messages).
+- Reference recently-fixed bugs when relevant: \`(recently fixed bug)\` or \`(regression check)\`.
+
+**Pre-conditions** — Compact. Name the test accounts/data/feature flags needed, separated by \`.\` or \`+\`. Examples of the shape:
+- \`Admin account.\`
+- \`Admin + Member accounts.\`
+- \`Multi-tenant workspace with distinct billing per tenant.\`
+- \`Admin. At least one existing record of type X.\`
+- \`Feature flag "new_checkout" enabled.\`
+If the test itself sets up state for later tests, say so: \`Workspace without a 2nd tenant yet — this test sets one up.\`
+
+**Status, Tested By, Notes** — Always blank. Three trailing commas at the end of every row.
+
+## CONTENT RULES
+
+1. **One test = one verifiable behavior.** If you're tempted to write \`and also verify X\` for an unrelated check, that's a second test case. Combining is allowed when the checks share setup and flow (e.g. "matrix renders + toggle persists + drawer opens" in one test because they're inspected in the same session).
+
+2. **Cover the negative path.** When a feature has a guard (refusal, disabled button, hidden control, blocked action, validation error), add a step that probes it and an Expected Result line that names the guard. Example: \`Try to delete the only admin. Confirm BLOCKED with clear error.\`
+
+3. **Cover the toggle/branch matrix.** When a feature is toggled or has variants, write steps for BOTH states (ON and OFF, default and non-default, free and paid, single-tenant and multi-tenant) within the same test if they share setup, otherwise as adjacent tests.
+
+4. **Cross-surface verification when relevant.** For features that touch multiple surfaces (in-app + PDF + email + public page + API response), list each surface as a step and require the Expected Result to confirm consistency across all of them.
+
+5. **Reference ticket/spec codes inline** when the test maps to a known spec item — include them in either the Test Case title or as a prefix.
+
+6. **Use placeholders with angle brackets** when the exact value is dynamic: \`<User Name>\`, \`<Tenant B name>\`. Use realistic concrete examples for things the tester sets: \`"TEST-"\`, \`"Premium Plan"\`, \`"new_checkout"\`.
+
+7. **Sequence tests logically.** Setup tests (e.g. "create a 2nd tenant") come before tests that depend on them. Use Pre-conditions to make dependencies explicit.
+
+8. **Smoke-test step is acceptable** for breadth: \`Smoke: open Reports, Settings, Audit Log, Billing — confirm they load without errors after switching tenant.\`
+
+## TONE
+
+Terse, technical, no fluff. Read like an engineer wrote it for another engineer to execute. No "please", no "make sure to", no marketing adjectives. UI strings get quotes; everything else is bare.
+
+## WHAT YOU WILL RECEIVE
+
+Below this prompt the requester will paste two sections:
+
+**APP CONTEXT** — info about the product so you can ground the tests:
+- What the app does (one paragraph)
+- Test personas / roles (e.g. Admin, Member, Viewer) and their test account names if any
+- Any standing concepts (multi-tenant? feature flags? environments?) that recur across tests
+- Module label conventions if they have an existing sheet to continue (e.g. "use PHASE 4 — ..." or "starting TC-31")
+
+**FEATURE SCOPE** — what to generate tests for. Any of these work; pick whichever you have on hand:
+- A feature spec / PRD section
+- A list of tickets or PRs with brief descriptions
+- A bullet list of changes shipped
+- Release notes / changelog entries
+- A raw \`git diff\`, PR diff, or commit-range summary (e.g. \`git log v1.4..v1.5 --oneline\` output)
+- Source code of changed files (paste the actual code — read it, infer the behavior, write tests against what the code does)
+- A mix of the above
+
+When given code or a diff, treat it as the source of truth for behavior. Read what changed, infer the user-visible outcome (new UI, new validation, new branch in logic, new permission gate, new API endpoint), and write tests for the outcome — not for the code structure. If the diff touches a component the tester won't directly see (a util function, a migration), trace it to the surface where its effect is visible and test there.
+
+Your job: derive the Module label(s), enumerate test cases that fully cover the behavior (happy path + negative paths + toggle branches + cross-surface consistency where it applies), and output the CSV.
+
+If APP CONTEXT is missing details:
+- Default Persona to the highest-privilege role that fits, or \`Admin\` if unspecified.
+- Default Pre-conditions to the minimum realistic setup (e.g. \`Admin account.\`) — never write \`N/A\` or \`None\`.
+- Pick a sensible Module label from the feature scope wording.
+
+Do not invent features the input doesn't describe — but DO add the standard guard/negative-path checks that any responsible UAT plan would include for the described feature.
+
+After the CSV, output nothing.
+
+---
+
+# APP CONTEXT (paste below)
+
+<one-paragraph app description>
+<list of personas / test accounts>
+<recurring concepts: multi-tenant, feature flags, environments>
+<starting TC number and module label conventions, if continuing an existing sheet>
+
+# FEATURE SCOPE (paste below)
+
+<paste ANY of: spec / tickets / PR notes / release notes / git diff / PR diff / source code of changed files>`;
+
 const parseSteps = (raw) => {
   if (!raw || typeof raw !== 'string') return [];
   const text = raw.trim();
@@ -957,6 +1085,34 @@ function UploadScreen({ onLoad, fileInputRef, hasExistingData, onBack, existingT
   const [testerInput, setTesterInput] = useState('');
   const [testerList, setTesterList] = useState(existingTesters || []);
   const [pendingFile, setPendingFile] = useState(null);
+  const [promptCopied, setPromptCopied] = useState(false);
+
+  const copyPrompt = async () => {
+    let ok = false;
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(CSV_GENERATION_PROMPT);
+        ok = true;
+      }
+    } catch (e) { console.warn('Clipboard API failed, falling back:', e); }
+    if (!ok) {
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = CSV_GENERATION_PROMPT;
+        ta.style.position = 'fixed'; ta.style.opacity = '0';
+        document.body.appendChild(ta); ta.focus(); ta.select();
+        ok = document.execCommand('copy');
+        document.body.removeChild(ta);
+      } catch (e) { console.error('Fallback copy failed:', e); }
+    }
+    if (ok) {
+      setPromptCopied(true);
+      setTimeout(() => setPromptCopied(false), 2500);
+    } else {
+      alert('Could not copy automatically. The prompt has been logged to the browser console — open DevTools to grab it.');
+      console.log('CSV_GENERATION_PROMPT:\n\n' + CSV_GENERATION_PROMPT);
+    }
+  };
 
   const addTester = () => {
     const raw = testerInput.trim(); if (!raw) return;
@@ -1006,6 +1162,18 @@ function UploadScreen({ onLoad, fileInputRef, hasExistingData, onBack, existingT
         </div>
         <div className="text-xs text-gray-500 text-center mb-4">
           Expected columns: Module, Test ID, Test Case, Persona, Steps, Expected Result, Pre-conditions, Status, Tested By, Notes
+        </div>
+
+        <div className="text-center mb-4">
+          <button onClick={copyPrompt}
+            className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium border transition-all ${promptCopied?'bg-green-950/40 border-green-700 text-green-300':'bg-gray-900 border-gray-700 text-gray-400 hover:text-indigo-300 hover:border-indigo-700 hover:bg-indigo-950/30'}`}
+            title="Copy a prompt you can paste into Claude or ChatGPT to generate a CSV that fits this app">
+            {promptCopied ? (
+              <><CheckCircle2 className="w-3.5 h-3.5"/>Prompt copied — paste into Claude/ChatGPT</>
+            ) : (
+              <><FileText className="w-3.5 h-3.5"/>Don't have a CSV? Copy AI prompt to generate one</>
+            )}
+          </button>
         </div>
         {hasExistingData && (
           <button onClick={onBack} className="w-full mb-4 flex items-center justify-center gap-2 px-4 py-3 bg-gray-900 border-2 border-indigo-700 text-indigo-300 rounded-lg hover:bg-indigo-950/40 hover:border-indigo-500 transition-all font-semibold shadow-sm">
