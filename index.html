@@ -1,82 +1,84 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Test Case Report Compiler</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
-<script src="https://cdn.tailwindcss.com"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-<style>
-  body { margin: 0; background: #030712; color: #f3f4f6; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
-  ::-webkit-scrollbar { width: 10px; height: 10px; }
-  ::-webkit-scrollbar-track { background: #0a0a0f; }
-  ::-webkit-scrollbar-thumb { background: #2a2a35; border-radius: 5px; border: 2px solid #0a0a0f; }
-  ::-webkit-scrollbar-thumb:hover { background: #3a3a48; }
-  ::-webkit-scrollbar-corner { background: #0a0a0f; }
-  * { scrollbar-color: #2a2a35 #0a0a0f; scrollbar-width: thin; }
-  .step-btn-preview { opacity: 0; transition: opacity 0.15s; }
-  .step-btn:hover .step-btn-preview { opacity: 1; }
-  .step-row-pencil { opacity: 0; transition: opacity 0.15s; }
-  .step-row:hover .step-row-pencil { opacity: 1; }
-  select.dark-select {
-    appearance: none; -webkit-appearance: none; -moz-appearance: none;
-    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
-    background-repeat: no-repeat; background-position: right 0.75rem center;
-    background-size: 12px; padding-right: 2.25rem !important;
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#111827" />
+  <title>Test Case Reviewer</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%234f46e5'/%3E%3Cpath d='M30 50l15 15 25-30' stroke='white' stroke-width='8' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    html, body { height: 100%; margin: 0; background: #030712; color: #f3f4f6; }
+    #root { min-height: 100vh; }
+    .boot-splash {
+      position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+      flex-direction: column; gap: 12px; color: #9ca3af; font-family: ui-sans-serif, system-ui, sans-serif;
+    }
+    .boot-spinner {
+      width: 32px; height: 32px; border-radius: 50%;
+      border: 3px solid #374151; border-top-color: #818cf8;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+  <script type="importmap">
+  {
+    "imports": {
+      "react": "https://esm.sh/react@18.3.1",
+      "react/jsx-runtime": "https://esm.sh/react@18.3.1/jsx-runtime",
+      "react-dom": "https://esm.sh/react-dom@18.3.1",
+      "react-dom/client": "https://esm.sh/react-dom@18.3.1/client",
+      "lucide-react": "https://esm.sh/lucide-react@0.383.0?deps=react@18.3.1",
+      "papaparse": "https://esm.sh/papaparse@5.4.1"
+    }
   }
-  select.dark-select::-ms-expand { display: none; }
-  @media (min-width: 1200px) {
-    .split-container { flex-direction: row !important; overflow: hidden !important; }
-    .split-column { overflow-y: auto !important; }
-  }
-  .sidebar-panel { width: 0; height: 100%; }
-  .sidebar-panel.sidebar-open { width: 100%; position: absolute; top: 0; left: 0; z-index: 40; height: 100%; border-bottom: 1px solid rgb(31 41 55); }
-  @media (min-width: 768px) {
-    .sidebar-panel { position: relative !important; height: 100% !important; }
-    .sidebar-panel.sidebar-open { width: 20rem; }
-  }
-  #loading { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: #030712; color: #9ca3af; font-size: 14px; z-index: 9999; }
-</style>
+  </script>
+  <script src="https://unpkg.com/@babel/standalone@7.24.7/babel.min.js"></script>
+  <script>
+    // Shim window.storage to use localStorage. Mirrors the async API shape the
+    // component expects: get → {value} | null, set → {value}, delete → {deleted},
+    // list → {keys}.
+    (function () {
+      if (window.storage) return;
+      const PREFIX = 'tcr_';
+      window.storage = {
+        async get(key) {
+          const v = localStorage.getItem(PREFIX + key);
+          return v === null ? null : { key, value: v };
+        },
+        async set(key, value) {
+          localStorage.setItem(PREFIX + key, value);
+          return { key, value };
+        },
+        async delete(key) {
+          localStorage.removeItem(PREFIX + key);
+          return { key, deleted: true };
+        },
+        async list(prefix) {
+          const fullPrefix = PREFIX + (prefix || '');
+          const keys = [];
+          for (let i = 0; i < localStorage.length; i++) {
+            const k = localStorage.key(i);
+            if (k && k.startsWith(fullPrefix)) keys.push(k.substring(PREFIX.length));
+          }
+          return { keys };
+        }
+      };
+    })();
+  </script>
 </head>
 <body>
-<div id="loading">Loading…</div>
-<div id="root"></div>
-
-<script type="text/babel" data-presets="react">
-const { useState, useEffect, useRef } = React;
-
-// ─── Inline SVG icons (Lucide-style) ───────────────────────────────────────────
-const Icon = ({ d, ...p }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}>{d}</svg>
-);
-const Upload = (p) => <Icon {...p} d={<><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></>}/>;
-const ChevronLeft = (p) => <Icon {...p} d={<polyline points="15 18 9 12 15 6"/>}/>;
-const ChevronRight = (p) => <Icon {...p} d={<polyline points="9 18 15 12 9 6"/>}/>;
-const Download = (p) => <Icon {...p} d={<><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></>}/>;
-const FileText = (p) => <Icon {...p} d={<><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></>}/>;
-const ImageIcon = (p) => <Icon {...p} d={<><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></>}/>;
-const X = (p) => <Icon {...p} d={<><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></>}/>;
-const CheckCircle2 = (p) => <Icon {...p} d={<><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></>}/>;
-const XCircle = (p) => <Icon {...p} d={<><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></>}/>;
-const AlertCircle = (p) => <Icon {...p} d={<><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></>}/>;
-const Clock = (p) => <Icon {...p} d={<><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></>}/>;
-const HelpCircle = (p) => <Icon {...p} d={<><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></>}/>;
-const Trash2 = (p) => <Icon {...p} d={<><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></>}/>;
-const FileDown = (p) => <Icon {...p} d={<><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 18 15 15"/></>}/>;
-const Search = (p) => <Icon {...p} d={<><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></>}/>;
-const PanelLeftClose = (p) => <Icon {...p} d={<><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/><polyline points="16 15 13 12 16 9"/></>}/>;
-const PanelLeftOpen = (p) => <Icon {...p} d={<><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/><polyline points="14 9 17 12 14 15"/></>}/>;
-const Plus = (p) => <Icon {...p} d={<><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></>}/>;
-const Users = (p) => <Icon {...p} d={<><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></>}/>;
-const Home = (p) => <Icon {...p} d={<><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></>}/>;
-const RotateCcw = (p) => <Icon {...p} d={<><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></>}/>;
-const Pencil = (p) => <Icon {...p} d={<><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></>}/>;
-const GripVertical = (p) => <Icon {...p} d={<><circle cx="9" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="19" r="1"/></>}/>;
-const Settings2 = (p) => <Icon {...p} d={<><path d="M20 7h-9"/><path d="M14 17H5"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/></>}/>;
-const Check = (p) => <Icon {...p} d={<polyline points="20 6 9 17 4 12"/>}/>;
+  <div id="root">
+    <div class="boot-splash">
+      <div class="boot-spinner"></div>
+      <div>Loading Test Case Reviewer…</div>
+    </div>
+  </div>
+  <script type="text/babel" data-type="module" data-presets="react">
+import { createRoot } from 'react-dom/client';
+import React, { useState, useEffect, useRef } from 'react';
+import { Upload, ChevronLeft, ChevronRight, Download, FileText, Image as ImageIcon, X, CheckCircle2, XCircle, AlertCircle, Clock, HelpCircle, Trash2, FileDown, Search, PanelLeftClose, PanelLeftOpen, Plus, Users, Home, RotateCcw, Pencil, GripVertical, Settings2, Check } from 'lucide-react';
+import Papa from 'papaparse';
 
 const STATUS_OPTIONS = [
   { value: 'Not Tested', color: 'bg-gray-700 text-gray-300 border-gray-600', dot: 'bg-gray-500', icon: Clock },
@@ -86,18 +88,30 @@ const STATUS_OPTIONS = [
   { value: 'Needs Review', color: 'bg-yellow-900/40 text-yellow-300 border-yellow-700', dot: 'bg-yellow-500', icon: HelpCircle },
 ];
 
-const getStatusConfig = (s) => STATUS_OPTIONS.find(x => x.value === s) || STATUS_OPTIONS[0];
+const getStatusConfig = (status) => STATUS_OPTIONS.find(s => s.value === status) || STATUS_OPTIONS[0];
 
 // Custom dark surface color used for cards, headers, and step row backgrounds.
+// Sits between Tailwind's gray-900 and gray-800 for subtle layering.
 const SURFACE_DARK = 'rgb(20 24 35)';
+
+// Storage capacity heuristics — window.storage caps values at ~5 MB per key.
+const STORAGE_LIMIT_BYTES = 5 * 1024 * 1024;
+const STORAGE_WARN_AT = 0.8;
+const STORAGE_DANGER_AT = 0.95;
 
 // Default empty finding shape — used wherever we initialize or fall back.
 const makeFinding = (overrides = {}) => ({
-  status: 'Not Tested', testedBy: '', notes: '', screenshots: [],
-  stepNotes: {}, stepChecks: {}, stepNoteOpen: {}, ...overrides,
+  status: 'Not Tested',
+  testedBy: '',
+  notes: '',
+  screenshots: [],
+  stepNotes: {},
+  stepChecks: {},
+  stepNoteOpen: {},
+  ...overrides,
 });
 
-// Rebuild canonical numbered `Steps` string from an array.
+// Rebuild the raw `Steps` string from an array, in canonical numbered form.
 const stepsToText = (arr) => (arr || []).map((s, n) => `${n + 1}. ${s}`).join('\n');
 
 // Prompt for users to paste into Claude/ChatGPT to generate a CSV that fits this app's schema.
@@ -232,51 +246,26 @@ const parseSteps = (raw) => {
   if (!raw || typeof raw !== 'string') return [];
   const text = raw.trim();
   if (!text) return [];
-  const mark = /^\s*(?:\(?\d+[\.\)\:]|step\s+\d+[\.\)\:]?|[-*•])\s+/i;
-  const strip = (l) => l.replace(mark, '').trim();
-  const lines = text.split(/\n+/).map(l => l.trim()).filter(Boolean);
-  if (!lines.length) return [];
-  if (!lines.some(l => mark.test(l))) return lines;
-  const out = [];
-  for (const l of lines) {
-    if (mark.test(l)) out.push(strip(l));
-    else if (out.length) out[out.length - 1] += '\n' + l;
-    else out.push(l);
+  const markerRegex = /^\s*(?:\(?\d+[\.\)\:]|step\s+\d+[\.\)\:]?|[-*•])\s+/i;
+  const stripMarker = (line) => line.replace(markerRegex, '').trim();
+  const lines = text.split(/\n+/).map(l => l.trim()).filter(l => l.length > 0);
+  if (lines.length === 0) return [];
+  const hasAnyMarker = lines.some(l => markerRegex.test(l));
+  if (!hasAnyMarker) return lines;
+  const steps = [];
+  for (const line of lines) {
+    if (markerRegex.test(line)) {
+      steps.push(stripMarker(line));
+    } else if (steps.length > 0) {
+      steps[steps.length - 1] += '\n' + line;
+    } else {
+      steps.push(line);
+    }
   }
-  return out.filter(Boolean);
+  return steps.filter(s => s.length > 0);
 };
 
-const STORAGE_KEY = 'test_case_compiler_v1';
-// Conservative cap — most browsers offer ~5 MB per origin.
-const STORAGE_LIMIT_BYTES = 5 * 1024 * 1024;
-const STORAGE_WARN_AT = 0.8;   // warn at 80% used
-const STORAGE_DANGER_AT = 0.95; // block-or-error at 95% used
-
-// ─── localStorage adapter (replaces window.storage) ────────────────────────────
-const storage = {
-  async get() {
-    try {
-      const v = localStorage.getItem(STORAGE_KEY);
-      return v ? { value: v } : null;
-    } catch (e) { return null; }
-  },
-  async set(v) {
-    try { localStorage.setItem(STORAGE_KEY, v); return true; } catch (e) { return false; }
-  },
-  async clear() {
-    try { localStorage.removeItem(STORAGE_KEY); return true; } catch (e) { return false; }
-  },
-  // Roughly measure how much our key occupies, in bytes
-  bytesUsed() {
-    try {
-      const v = localStorage.getItem(STORAGE_KEY);
-      // UTF-16 in memory but UTF-8 bytes on disk; use Blob for accurate size.
-      return v ? new Blob([v]).size : 0;
-    } catch (e) { return 0; }
-  }
-};
-
-function App() {
+function TestCaseReviewer() {
   const [testCases, setTestCases] = useState([]);
   const [findings, setFindings] = useState({});
   const [currentIdx, setCurrentIdx] = useState(0);
@@ -303,7 +292,7 @@ function App() {
   useEffect(() => {
     (async () => {
       try {
-        const stored = await storage.get();
+        const stored = await window.storage.get('test_data');
         if (stored?.value) {
           const data = JSON.parse(stored.value);
           const rehydrated = (data.testCases || []).map(tc => ({
@@ -316,77 +305,126 @@ function App() {
           setTesters(data.testers || []);
           setLastUsedTester(data.lastUsedTester || '');
         }
-        setStorageBytes(storage.bytesUsed());
-      } catch (e) {} finally { setLoaded(true); }
+      } catch (e) {
+        // No data yet
+      } finally {
+        setLoaded(true);
+      }
     })();
   }, []);
 
   useEffect(() => {
-    if (!loaded || testCases.length === 0) return;
-    const t = setTimeout(() => {
+    if (!loaded) return;
+    if (testCases.length === 0) return;
+    const t = setTimeout(async () => {
       try {
-        const payload = JSON.stringify({ testCases, findings, currentIdx, testers, lastUsedTester });
-        const bytes = new Blob([payload]).size;
-        if (bytes > STORAGE_LIMIT_BYTES * STORAGE_DANGER_AT) {
-          // Don't even try to write — it would likely fail mid-save.
-          setStorageError(`Storage almost full (${(bytes / 1024 / 1024).toFixed(1)} MB used of ~${(STORAGE_LIMIT_BYTES / 1024 / 1024).toFixed(0)} MB). Recent changes were NOT saved. Export your findings to free up space.`);
-          setStorageBytes(bytes);
-          return;
-        }
-        localStorage.setItem(STORAGE_KEY, payload);
-        setStorageBytes(storage.bytesUsed());
-        setStorageError(null);
+        await window.storage.set('test_data', JSON.stringify({ testCases, findings, currentIdx, testers, lastUsedTester }));
       } catch (e) {
-        // QuotaExceededError or other write failure
-        setStorageError(`Could not save: ${e.message}. Your changes are still here in this session — export them before refreshing.`);
+        console.error('Save failed', e);
       }
     }, 500);
     return () => clearTimeout(t);
   }, [testCases, findings, currentIdx, testers, lastUsedTester, loaded]);
 
   const handleFile = (file, testerList) => {
-    if (!file) return;
-    Papa.parse(file, {
-      header: true, dynamicTyping: false, skipEmptyLines: true,
-      transformHeader: h => h.trim(),
-      complete: (results) => {
-        const rows = results.data.filter(r => Object.values(r).some(v => v && String(v).trim()))
-          .map((r, i) => ({ ...r, __id: r['Test ID'] || `row-${i}`, __steps: parseSteps(r.Steps) }));
-        setTestCases(rows);
-        const init = {};
-        rows.forEach(r => {
-          const s = r.Status && String(r.Status).trim() && !['nan','NaN',''].includes(String(r.Status).trim()) ? r.Status : 'Not Tested';
-          const tb = r['Tested By'] && !['nan','NaN'].includes(String(r['Tested By'])) ? r['Tested By'] : '';
-          const n = r.Notes && !['nan','NaN'].includes(String(r.Notes)) ? r.Notes : '';
-          init[r.__id] = { status: s, testedBy: tb, notes: n, screenshots: [], stepNotes: {}, stepChecks: {} };
-        });
-        setFindings(init);
-        setTesters(testerList || []);
-        setCurrentIdx(0);
-      },
-      error: (e) => alert('Error parsing CSV: ' + e.message)
+    if (!file) return { error: 'No file provided.' };
+    return new Promise((resolve) => {
+      Papa.parse(file, {
+        header: true,
+        dynamicTyping: false,
+        skipEmptyLines: true,
+        transformHeader: (h) => h.trim(),
+        complete: (results) => {
+          // Check parser errors
+          const fatalErrors = (results.errors || []).filter(e => e.type === 'Quotes' || e.type === 'FieldMismatch' || e.code === 'UndetectableDelimiter');
+          if (fatalErrors.length > 0) {
+            resolve({ error: `CSV could not be parsed: ${fatalErrors[0].message || fatalErrors[0].code}. Make sure your file is a valid CSV (no markdown fences, no preamble text).` });
+            return;
+          }
+
+          // Check headers
+          const headers = (results.meta?.fields || []).map(h => h.trim());
+          const requiredCore = ['Module', 'Test ID', 'Test Case', 'Steps'];
+          const missing = requiredCore.filter(h => !headers.includes(h));
+          if (missing.length > 0) {
+            resolve({ error: `Missing required column(s): ${missing.join(', ')}. The first row of your CSV must contain the headers: Module, Test ID, Test Case, Persona, Steps, Expected Result, Pre-conditions, Status, Tested By, Notes.` });
+            return;
+          }
+
+          // Filter rows
+          const rows = results.data
+            .filter(r => Object.values(r).some(v => v && String(v).trim()))
+            .map((r, i) => ({
+              ...r,
+              __id: r['Test ID'] || `row-${i}`,
+              __steps: parseSteps(r.Steps),
+            }));
+
+          if (rows.length === 0) {
+            resolve({ error: 'The CSV has the correct headers but no test case rows were found. Make sure each row has data in at least the Module, Test ID, Test Case, or Steps columns.' });
+            return;
+          }
+
+          // Success — apply the data
+          setTestCases(rows);
+          const initialFindings = {};
+          rows.forEach(r => {
+            const existingStatus = r.Status && String(r.Status).trim() && !['nan', 'NaN', ''].includes(String(r.Status).trim()) ? r.Status : 'Not Tested';
+            const existingTestedBy = r['Tested By'] && !['nan', 'NaN'].includes(String(r['Tested By'])) ? r['Tested By'] : '';
+            const existingNotes = r.Notes && !['nan', 'NaN'].includes(String(r.Notes)) ? r.Notes : '';
+            initialFindings[r.__id] = makeFinding({
+              status: existingStatus,
+              testedBy: existingTestedBy,
+              notes: existingNotes,
+            });
+          });
+          setFindings(initialFindings);
+          setTesters(testerList || []);
+          setCurrentIdx(0);
+          resolve({ success: true, count: rows.length });
+        },
+        error: (err) => {
+          resolve({ error: 'Error reading CSV file: ' + err.message });
+        }
+      });
     });
   };
 
   const updateFinding = (id, key, value) => {
-    setFindings(prev => ({ ...prev, [id]: { ...(prev[id] || makeFinding()), [key]: value } }));
+    setFindings(prev => ({
+      ...prev,
+      [id]: { ...(prev[id] || makeFinding()), [key]: value }
+    }));
   };
-  const updateStepNote = (id, idx, value) => {
+
+  const updateStepNote = (id, stepIdx, value) => {
     setFindings(prev => {
-      const c = prev[id] || makeFinding();
-      return { ...prev, [id]: { ...c, stepNotes: { ...(c.stepNotes||{}), [idx]: value } } };
+      const current = prev[id] || makeFinding();
+      return { ...prev, [id]: { ...current, stepNotes: { ...(current.stepNotes || {}), [stepIdx]: value } } };
     });
   };
-  const toggleStepCheck = (id, idx) => {
+
+  const toggleStepCheck = (id, stepIdx) => {
     setFindings(prev => {
-      const c = prev[id] || makeFinding();
-      const cs = (c.stepChecks||{})[idx];
-      const nc = { ...(c.stepChecks||{}) };
-      if (cs === 'done' || cs === true) delete nc[idx]; else nc[idx] = 'done';
-      return { ...prev, [id]: { ...c, stepChecks: nc } };
+      const current = prev[id] || { status: 'Not Tested', testedBy: '', notes: '', screenshots: [], stepNotes: {}, stepChecks: {} };
+      const currentState = (current.stepChecks || {})[stepIdx];
+      const newChecks = { ...(current.stepChecks || {}) };
+      // Toggle 'done' on/off — independent of blocked
+      if (currentState === 'done' || currentState === true) {
+        delete newChecks[stepIdx];
+      } else {
+        newChecks[stepIdx] = 'done';
+      }
+      return { ...prev, [id]: { ...current, stepChecks: newChecks } };
     });
   };
-  const handleTesterChange = (id, v) => { updateFinding(id, 'testedBy', v); if (v) setLastUsedTester(v); };
+
+  const handleTesterChange = (id, value) => {
+    updateFinding(id, 'testedBy', value);
+    if (value) setLastUsedTester(value);
+  };
+
+  // ── Step editing (add / edit / delete / reorder) ─────────────────────────
 
   // Mutate the current test case's steps array via a transform function.
   const mutateSteps = (fn) => {
@@ -403,6 +441,7 @@ function App() {
     if (!id) return;
     const remap = (obj) => {
       if (!obj) return {};
+      // Convert to sparse array, transform, then back to object
       const arr = [];
       Object.keys(obj).forEach(k => {
         const n = parseInt(k, 10);
@@ -414,17 +453,21 @@ function App() {
       return out;
     };
     setFindings(prev => {
-      const f = prev[id]; if (!f) return prev;
+      const f = prev[id];
+      if (!f) return prev;
       return { ...prev, [id]: { ...f, stepChecks: remap(f.stepChecks), stepNotes: remap(f.stepNotes), stepNoteOpen: remap(f.stepNoteOpen) } };
     });
   };
 
   const updateStepText = (idx, text) => mutateSteps(arr => { arr[idx] = text; return arr; });
+
   const addStep = () => mutateSteps(arr => [...arr, '']);
+
   const deleteStep = (idx) => {
     mutateSteps(arr => arr.filter((_, k) => k !== idx));
     remapStepState(arr => { arr.splice(idx, 1); return arr; });
   };
+
   const reorderSteps = (from, to) => {
     if (from === to || from == null || to == null) return;
     mutateSteps(arr => { const [m] = arr.splice(from, 1); arr.splice(to, 0, m); return arr; });
@@ -432,224 +475,448 @@ function App() {
   };
 
   useEffect(() => {
-    if (!testCases.length) return;
-    const cur = testCases[currentIdx]; if (!cur) return;
-    const f = findings[cur.__id];
-    if (f && !f.testedBy && lastUsedTester) updateFinding(cur.__id, 'testedBy', lastUsedTester);
+    if (testCases.length === 0) return;
+    const current = testCases[currentIdx];
+    if (!current) return;
+    const f = findings[current.__id];
+    if (f && !f.testedBy && lastUsedTester) {
+      updateFinding(current.__id, 'testedBy', lastUsedTester);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentIdx, testCases.length]);
 
   const addScreenshots = async (id, files) => {
-    const arr = Array.from(files).filter(f => f.type.startsWith('image/'));
-    const shots = await Promise.all(arr.map(file => new Promise(res => {
-      const r = new FileReader();
-      r.onload = e => res({ name: file.name, data: e.target.result, size: file.size, addedAt: Date.now()+Math.random() });
-      r.readAsDataURL(file);
-    })));
+    const fileArray = Array.from(files).filter(f => f.type.startsWith('image/'));
+    const promises = fileArray.map(file => new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => resolve({ name: file.name, data: e.target.result, size: file.size, addedAt: Date.now() + Math.random() });
+      reader.readAsDataURL(file);
+    }));
+    const newShots = await Promise.all(promises);
     setFindings(prev => {
-      const c = prev[id] || makeFinding();
-      return { ...prev, [id]: { ...c, screenshots: [...(c.screenshots||[]), ...shots] } };
+      const current = prev[id] || makeFinding();
+      return { ...prev, [id]: { ...current, screenshots: [...(current.screenshots || []), ...newShots] } };
     });
   };
+
   const removeScreenshot = (id, idx) => {
     setFindings(prev => {
-      const c = prev[id]; if (!c) return prev;
-      return { ...prev, [id]: { ...c, screenshots: c.screenshots.filter((_,i)=>i!==idx) } };
+      const current = prev[id];
+      if (!current) return prev;
+      return { ...prev, [id]: { ...current, screenshots: current.screenshots.filter((_, i) => i !== idx) } };
     });
   };
 
   useEffect(() => {
-    const onPaste = (e) => {
-      if (!testCases.length) return;
-      const items = e.clipboardData?.items; if (!items) return;
-      const imgs = [];
-      for (const it of items) if (it.type.startsWith('image/')) { const f = it.getAsFile(); if (f) imgs.push(f); }
-      if (imgs.length) {
+    const handlePaste = (e) => {
+      if (testCases.length === 0) return;
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      const images = [];
+      for (const item of items) {
+        if (item.type.startsWith('image/')) {
+          const file = item.getAsFile();
+          if (file) images.push(file);
+        }
+      }
+      if (images.length > 0) {
         e.preventDefault();
-        const cid = testCases[currentIdx]?.__id;
-        if (cid) addScreenshots(cid, imgs);
+        const currentId = testCases[currentIdx]?.__id;
+        if (currentId) addScreenshots(currentId, images);
       }
     };
-    window.addEventListener('paste', onPaste);
-    return () => window.removeEventListener('paste', onPaste);
+    window.addEventListener('paste', handlePaste);
+    return () => window.removeEventListener('paste', handlePaste);
   }, [testCases, currentIdx]);
 
   const doReset = async () => {
     setShowResetConfirm(false);
-    setTestCases([]); setFindings({}); setCurrentIdx(0); setTesters([]); setLastUsedTester('');
-    setSearch(''); setFilterStatus('All'); setShowUploadScreen(false);
-    setStorageBytes(0); setStorageError(null);
-    try { await storage.clear(); } catch (e) {}
+    setTestCases([]);
+    setFindings({});
+    setCurrentIdx(0);
+    setTesters([]);
+    setLastUsedTester('');
+    setSearch('');
+    setFilterStatus('All');
+    setShowUploadScreen(false);
+    setStorageBytes(0);
+    setStorageError(null);
+    try { await window.storage.delete('test_data'); } catch (e) {}
+    try {
+      const list = await window.storage.list('');
+      if (list?.keys) {
+        for (const k of list.keys) {
+          try { await window.storage.delete(k); } catch (e) {}
+        }
+      }
+    } catch (e) {}
   };
 
   const exportHTML = () => {
     try {
-      const esc = s => String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-      const counts = STATUS_OPTIONS.reduce((a,s) => { a[s.value] = testCases.filter(t => (findings[t.__id]?.status||'Not Tested')===s.value).length; return a; }, {});
-      const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Test Case Report - ${new Date().toLocaleDateString()}</title>
+      console.log('Starting HTML export...');
+      const escapeHtml = (s) => String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+      const statusCounts = STATUS_OPTIONS.reduce((acc, s) => {
+        acc[s.value] = testCases.filter(t => (findings[t.__id]?.status || 'Not Tested') === s.value).length;
+        return acc;
+      }, {});
+
+    const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>OpenMaison UAT Report - ${new Date().toLocaleDateString()}</title>
 <style>
-* { box-sizing: border-box; }
-body { font-family: -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; max-width:1100px; margin:0 auto; padding:32px; color:#1f2937; background:#f9fafb; }
-.report-header { background:white; padding:24px 28px; border-radius:10px; box-shadow:0 1px 3px rgba(0,0,0,0.06); margin-bottom:24px; border-top:4px solid #6366f1; }
-.report-header h1 { color:#111827; margin:0 0 4px 0; font-size:24px; font-weight:700; }
-.report-header .meta { color:#6b7280; font-size:13px; margin-bottom:16px; }
-.stats { display:flex; flex-wrap:wrap; gap:8px; padding-top:16px; border-top:1px solid #f3f4f6; }
-.stat { padding:8px 14px; border-radius:6px; font-weight:600; font-size:13px; display:inline-flex; align-items:center; gap:6px; }
-.stat-count { font-size:16px; font-weight:700; }
-.stat-Pass{background:#d1fae5;color:#065f46}.stat-Fail{background:#fee2e2;color:#991b1b}.stat-Blocked{background:#fed7aa;color:#9a3412}.stat-Needs-Review{background:#fef3c7;color:#92400e}.stat-Not-Tested{background:#f3f4f6;color:#4b5563}
-.test-case { background:white; border-radius:8px; padding:24px; margin-bottom:24px; box-shadow:0 1px 3px rgba(0,0,0,0.1); page-break-inside:avoid; }
-.tc-header { display:flex; justify-content:space-between; align-items:start; flex-wrap:wrap; gap:12px; margin-bottom:16px; padding-bottom:12px; border-bottom:1px solid #e5e7eb; }
-.tc-title { font-size:18px; font-weight:700; color:#111827; margin:0; }
-.tc-id { color:#6b7280; font-size:13px; font-family:monospace; }
-.badge { display:inline-block; padding:4px 12px; border-radius:12px; font-size:12px; font-weight:600; }
-.badge-Pass{background:#d1fae5;color:#065f46}.badge-Fail{background:#fee2e2;color:#991b1b}.badge-Blocked{background:#fed7aa;color:#9a3412}.badge-Needs-Review{background:#fef3c7;color:#92400e}.badge-Not-Tested{background:#f3f4f6;color:#4b5563}
-.field { margin-bottom:12px; }
-.field-label { font-weight:600; color:#374151; font-size:13px; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px; }
-.field-value { color:#1f2937; white-space:pre-wrap; }
-.findings { margin-top:20px; padding-top:16px; border-top:2px solid #e5e7eb; background:#f9fafb; padding:16px; border-radius:6px; }
-.findings-title { font-weight:700; color:#4338ca; margin-bottom:12px; font-size:14px; text-transform:uppercase; letter-spacing:0.5px; }
-.prompt-block { margin-top:16px; border:1px solid #d1d5db; border-radius:6px; background:#f9fafb; overflow:hidden; }
-.prompt-header { display:flex; justify-content:space-between; align-items:center; padding:8px 12px; background:#f3f4f6; border-bottom:1px solid #d1d5db; }
-.prompt-label { font-size:11px; font-weight:700; color:#4b5563; text-transform:uppercase; letter-spacing:0.5px; }
-.copy-btn { background:#6b7280; color:white; border:none; padding:4px 10px; border-radius:4px; font-size:11px; font-weight:600; cursor:pointer; font-family:inherit; }
-.copy-btn:hover { background:#4b5563; }
-.copy-btn.copied { background:#16a34a; }
-.prompt-text { padding:12px; font-family:'Menlo','Monaco','Consolas',monospace; font-size:12px; color:#1f2937; white-space:pre-wrap; word-break:break-word; line-height:1.5; max-height:300px; overflow-y:auto; }
-.step-row { display:flex; gap:12px; align-items:start; padding:12px; background:white; border:1px solid #e5e7eb; border-radius:6px; margin-bottom:8px; }
-.step-row.checked { background:#f0fdf4; border-color:#86efac; }
-.step-row.blocked { background:#fef2f2; border-color:#fca5a5; }
-.step-check { width:20px; height:20px; border-radius:4px; border:2px solid #d1d5db; display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:2px; font-weight:bold; }
-.step-check.checked { background:#16a34a; border-color:#16a34a; color:white; }
-.step-check.blocked { background:#dc2626; border-color:#dc2626; color:white; }
-.step-num { font-weight:700; color:#6366f1; flex-shrink:0; min-width:24px; }
-.step-content { flex:1; }
-.step-text { color:#1f2937; margin-bottom:6px; }
-.step-note { background:#fffbeb; border-left:3px solid #f59e0b; padding:6px 10px; font-size:13px; color:#78350f; border-radius:3px; white-space:pre-wrap; }
-.screenshots { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:12px; margin-top:12px; }
-.screenshot { border:1px solid #d1d5db; border-radius:6px; overflow:hidden; cursor:pointer; transition:transform 0.15s,box-shadow 0.15s; position:relative; }
-.screenshot:hover { transform:translateY(-2px); box-shadow:0 4px 12px rgba(0,0,0,0.15); }
-.screenshot img { width:100%; height:auto; display:block; }
-.screenshot-name { padding:6px 8px; background:#f3f4f6; font-size:11px; color:#6b7280; word-break:break-all; }
-.fig-label { position:absolute; top:8px; left:8px; background:#4f46e5; color:white; font-size:11px; font-weight:700; padding:3px 8px; border-radius:4px; box-shadow:0 1px 3px rgba(0,0,0,0.3); z-index:2; }
-.lightbox { position:fixed; inset:0; background:rgba(0,0,0,0.9); display:none; align-items:center; justify-content:center; z-index:9999; cursor:zoom-out; padding:20px; }
-.lightbox.open { display:flex; }
-.lightbox img { max-width:100%; max-height:90vh; box-shadow:0 10px 40px rgba(0,0,0,0.5); border-radius:4px; }
-.lightbox-caption { position:absolute; bottom:20px; left:50%; transform:translateX(-50%); color:white; background:rgba(0,0,0,0.7); padding:8px 16px; border-radius:4px; font-size:13px; max-width:80%; text-align:center; word-break:break-all; }
-.lightbox-close { position:absolute; top:20px; right:20px; color:white; background:rgba(0,0,0,0.5); border:none; width:40px; height:40px; border-radius:50%; cursor:pointer; font-size:24px; display:flex; align-items:center; justify-content:center; }
-.lightbox-close:hover { background:rgba(0,0,0,0.8); }
-@media print { body{background:white} .test-case{box-shadow:none;border:1px solid #e5e7eb} .lightbox{display:none !important} }
-</style></head><body>
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 1100px; margin: 0 auto; padding: 32px; color: #1f2937; background: #f9fafb; }
+  .report-header { background: white; padding: 24px 28px; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); margin-bottom: 24px; border-top: 4px solid #6366f1; }
+  .report-header h1 { color: #111827; margin: 0 0 4px 0; font-size: 24px; font-weight: 700; }
+  .report-header .meta { color: #6b7280; font-size: 13px; margin-bottom: 16px; }
+  .stats { display: flex; flex-wrap: wrap; gap: 8px; padding-top: 16px; border-top: 1px solid #f3f4f6; }
+  .stat { padding: 8px 14px; border-radius: 6px; font-weight: 600; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; }
+  .stat-count { font-size: 16px; font-weight: 700; }
+  .stat-Pass { background: #d1fae5; color: #065f46; }
+  .stat-Fail { background: #fee2e2; color: #991b1b; }
+  .stat-Blocked { background: #fed7aa; color: #9a3412; }
+  .stat-Needs-Review { background: #fef3c7; color: #92400e; }
+  .stat-Not-Tested { background: #f3f4f6; color: #4b5563; }
+  .test-case { background: white; border-radius: 8px; padding: 24px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); page-break-inside: avoid; }
+  .tc-header { display: flex; justify-content: space-between; align-items: start; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid #e5e7eb; }
+  .tc-title { font-size: 18px; font-weight: 700; color: #111827; margin: 0; }
+  .tc-id { color: #6b7280; font-size: 13px; font-family: monospace; }
+  .badge { display: inline-block; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600; }
+  .badge-Pass { background: #d1fae5; color: #065f46; }
+  .badge-Fail { background: #fee2e2; color: #991b1b; }
+  .badge-Blocked { background: #fed7aa; color: #9a3412; }
+  .badge-Needs-Review { background: #fef3c7; color: #92400e; }
+  .badge-Not-Tested { background: #f3f4f6; color: #4b5563; }
+  .field { margin-bottom: 12px; }
+  .field-label { font-weight: 600; color: #374151; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+  .field-value { color: #1f2937; white-space: pre-wrap; }
+  .findings { margin-top: 20px; padding-top: 16px; border-top: 2px solid #e5e7eb; background: #f9fafb; padding: 16px; border-radius: 6px; }
+  .findings-title { font-weight: 700; color: #4338ca; margin-bottom: 12px; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .prompt-block { margin-top: 16px; border: 1px solid #d1d5db; border-radius: 6px; background: #f9fafb; overflow: hidden; }
+  .prompt-header { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: #f3f4f6; border-bottom: 1px solid #d1d5db; }
+  .prompt-label { font-size: 11px; font-weight: 700; color: #4b5563; text-transform: uppercase; letter-spacing: 0.5px; }
+  .copy-btn { background: #6b7280; color: white; border: none; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: 600; cursor: pointer; transition: background 0.15s; font-family: inherit; }
+  .copy-btn:hover { background: #4b5563; }
+  .copy-btn.copied { background: #16a34a; }
+  .prompt-text { padding: 12px; font-family: 'Menlo', 'Monaco', 'Consolas', monospace; font-size: 12px; color: #1f2937; white-space: pre-wrap; word-break: break-word; line-height: 1.5; max-height: 300px; overflow-y: auto; }
+  .step-row { display: flex; gap: 12px; align-items: start; padding: 12px; background: white; border: 1px solid #e5e7eb; border-radius: 6px; margin-bottom: 8px; }
+  .step-row.checked { background: #f0fdf4; border-color: #86efac; }
+  .step-row.blocked { background: #fef2f2; border-color: #fca5a5; }
+  .step-check { width: 20px; height: 20px; border-radius: 4px; border: 2px solid #d1d5db; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px; font-weight: bold; }
+  .step-check.checked { background: #16a34a; border-color: #16a34a; color: white; }
+  .step-check.blocked { background: #dc2626; border-color: #dc2626; color: white; }
+  .step-num { font-weight: 700; color: #6366f1; flex-shrink: 0; min-width: 24px; }
+  .step-content { flex: 1; }
+  .step-text { color: #1f2937; margin-bottom: 6px; }
+  .step-note { background: #fffbeb; border-left: 3px solid #f59e0b; padding: 6px 10px; font-size: 13px; color: #78350f; border-radius: 3px; white-space: pre-wrap; }
+  .screenshots { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin-top: 12px; }
+  .screenshot { border: 1px solid #d1d5db; border-radius: 6px; overflow: hidden; cursor: pointer; transition: transform 0.15s, box-shadow 0.15s; position: relative; }
+  .screenshot:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+  .screenshot img { width: 100%; height: auto; display: block; }
+  .screenshot-name { padding: 6px 8px; background: #f3f4f6; font-size: 11px; color: #6b7280; word-break: break-all; }
+  .fig-label { position: absolute; top: 8px; left: 8px; background: #4f46e5; color: white; font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.3); z-index: 2; }
+  .lightbox { position: fixed; inset: 0; background: rgba(0,0,0,0.9); display: none; align-items: center; justify-content: center; z-index: 9999; cursor: zoom-out; padding: 20px; }
+  .lightbox.open { display: flex; }
+  .lightbox img { max-width: 100%; max-height: 90vh; box-shadow: 0 10px 40px rgba(0,0,0,0.5); border-radius: 4px; }
+  .lightbox-caption { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); color: white; background: rgba(0,0,0,0.7); padding: 8px 16px; border-radius: 4px; font-size: 13px; max-width: 80%; text-align: center; word-break: break-all; }
+  .lightbox-close { position: absolute; top: 20px; right: 20px; color: white; background: rgba(0,0,0,0.5); border: none; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; font-size: 24px; display: flex; align-items: center; justify-content: center; }
+  .lightbox-close:hover { background: rgba(0,0,0,0.8); }
+  @media print { body { background: white; } .test-case { box-shadow: none; border: 1px solid #e5e7eb; } .lightbox { display: none !important; } }
+</style>
+</head>
+<body>
 <div class="report-header">
   <h1>Test Case Report</h1>
   <div class="meta">Generated on ${new Date().toLocaleString()} &middot; ${testCases.length} test cases</div>
-  <div class="stats">${STATUS_OPTIONS.filter(s=>s.value!=='Not Tested').map(s=>`<div class="stat stat-${s.value.replace(' ','-')}">${esc(s.value)}<span class="stat-count">${counts[s.value]}</span></div>`).join('')}</div>
+  <div class="stats">
+    ${STATUS_OPTIONS.filter(s => s.value !== 'Not Tested').map(s => `<div class="stat stat-${s.value.replace(' ','-')}">${escapeHtml(s.value)}<span class="stat-count">${statusCounts[s.value]}</span></div>`).join('')}
+  </div>
 </div>
-${testCases.map((tc,i) => {
-  const f = findings[tc.__id] || { status:'Not Tested', testedBy:'', notes:'', screenshots:[], stepNotes:{}, stepChecks:{} };
-  const sc = (f.status||'Not Tested').replace(' ','-');
+
+${testCases.map((tc, i) => {
+  const f = findings[tc.__id] || { status: 'Not Tested', testedBy: '', notes: '', screenshots: [], stepNotes: {}, stepChecks: {} };
+  const statusClass = (f.status || 'Not Tested').replace(' ', '-');
   const steps = tc.__steps || [];
-  const parts = [];
-  if (f.notes && f.notes.trim()) parts.push(f.notes.trim());
-  const psn = (steps||[]).map((step,idx)=>{
-    const note=(f.stepNotes||{})[idx]; const rs=(f.stepChecks||{})[idx]; const blk=rs==='blocked';
-    const sl=step.replace(/\n/g,' ').trim();
-    if (blk && note && note.trim()) return `On step ${idx+1} (${sl}) — UNABLE TO PROCEED: ${note.trim()}`;
-    if (blk) return `On step ${idx+1} (${sl}) — UNABLE TO PROCEED.`;
-    if (note && note.trim()) return `On step ${idx+1} (${sl}): ${note.trim()}`;
-    return null;
-  }).filter(Boolean);
-  if (psn.length) { if (f.notes && f.notes.trim()) parts.push(''); parts.push(psn.join(' ')); }
-  const has = (f.notes && f.notes.trim()) || psn.length>0;
-  const ptxt = has ? parts.join('\n') : '(No notes recorded for this test case.)';
-  return `<div class="test-case">
-<div class="tc-header"><div><div class="tc-id">${esc(tc['Test ID']||`TC-${i+1}`)} &middot; ${esc(tc.Module||'')}</div><h2 class="tc-title">${esc(tc['Test Case']||'Untitled')}</h2></div><span class="badge badge-${sc}">${esc(f.status||'Not Tested')}</span></div>
-${tc.Persona?`<div class="field"><div class="field-label">Persona</div><div class="field-value">${esc(tc.Persona)}</div></div>`:''}
-${tc['Pre-conditions']?`<div class="field"><div class="field-label">Pre-conditions</div><div class="field-value">${esc(tc['Pre-conditions'])}</div></div>`:''}
-${steps.length>0?`<div class="field"><div class="field-label">Steps</div>${steps.map((step,idx)=>{
-  const rs=(f.stepChecks||{})[idx]; const ss=(rs==='done'||rs===true)?'done':(rs==='blocked'?'blocked':'none');
-  const sn=(f.stepNotes||{})[idx]; const rc=ss==='done'?'checked':(ss==='blocked'?'blocked':''); const cc=rc; const m=ss==='done'?'✓':(ss==='blocked'?'✕':'');
-  return `<div class="step-row ${rc}"><div class="step-check ${cc}">${m}</div><div class="step-num">${idx+1}.</div><div class="step-content"><div class="step-text">${esc(step)}${ss==='blocked'?' <span style="color:#dc2626;font-weight:600;font-size:11px;">(unable to proceed)</span>':''}</div>${sn?`<div class="step-note"><strong>Note:</strong> ${esc(sn)}</div>`:''}</div></div>`;
-}).join('')}</div>`:''}
-${tc['Expected Result']?`<div class="field"><div class="field-label">Expected Result</div><div class="field-value">${esc(tc['Expected Result'])}</div></div>`:''}
-<div class="findings"><div class="findings-title">Tester Findings</div>
-${f.testedBy?`<div class="field"><div class="field-label">Tested By</div><div class="field-value">${esc(f.testedBy)}</div></div>`:''}
-<div class="field"><div class="field-label">Overall Notes</div><div class="field-value">${esc(f.notes)||'<em style="color:#9ca3af">No notes</em>'}</div></div>
-${f.screenshots&&f.screenshots.length>0?`<div class="field-label">Screenshots (${f.screenshots.length})</div><div class="screenshots">${f.screenshots.map((s,sidx)=>`<div class="screenshot" data-src="${s.data}" data-name="${esc(s.name)}" data-fig="Fig. ${sidx+1}"><div class="fig-label">Fig. ${sidx+1}</div><img src="${s.data}" alt="${esc(s.name)}"><div class="screenshot-name">${esc(s.name)}</div></div>`).join('')}</div>`:''}
-<div class="field" style="margin-top:12px;"><div class="field-label">Final Status</div><div class="field-value"><span class="badge badge-${sc}">${esc(f.status||'Not Tested')}</span></div></div>
-<div class="prompt-block"><div class="prompt-header"><span class="prompt-label">📋 Copy-paste prompt for Claude / dev chat</span><button class="copy-btn" data-target="prompt-${i}">Copy</button></div><div class="prompt-text" id="prompt-${i}">${esc(ptxt)}</div></div>
-</div></div>`;
+
+  // Build dev-friendly prompt text — just the notes, nothing else
+  const promptParts = [];
+
+  if (f.notes && f.notes.trim()) {
+    promptParts.push(f.notes.trim());
+  }
+
+  const perStepNotes = (steps || [])
+    .map((step, idx) => {
+      const note = (f.stepNotes || {})[idx];
+      const rawState = (f.stepChecks || {})[idx];
+      const blocked = rawState === 'blocked';
+      const stepLine = step.replace(/\n/g, ' ').trim();
+      if (blocked && note && note.trim()) {
+        return `On step ${idx + 1} (${stepLine}) — UNABLE TO PROCEED: ${note.trim()}`;
+      }
+      if (blocked) {
+        return `On step ${idx + 1} (${stepLine}) — UNABLE TO PROCEED.`;
+      }
+      if (note && note.trim()) {
+        return `On step ${idx + 1} (${stepLine}): ${note.trim()}`;
+      }
+      return null;
+    })
+    .filter(Boolean);
+
+  if (perStepNotes.length > 0) {
+    if (f.notes && f.notes.trim()) promptParts.push('');
+    promptParts.push(perStepNotes.join(' '));
+  }
+
+  const hasContent = (f.notes && f.notes.trim()) || perStepNotes.length > 0;
+  const promptText = hasContent ? promptParts.join('\n') : '(No notes recorded for this test case.)';
+  const promptId = `prompt-${i}`;
+  return `
+<div class="test-case">
+  <div class="tc-header">
+    <div>
+      <div class="tc-id">${escapeHtml(tc['Test ID'] || `TC-${i+1}`)} &middot; ${escapeHtml(tc.Module || '')}</div>
+      <h2 class="tc-title">${escapeHtml(tc['Test Case'] || 'Untitled')}</h2>
+    </div>
+    <span class="badge badge-${statusClass}">${escapeHtml(f.status || 'Not Tested')}</span>
+  </div>
+  ${tc.Persona ? `<div class="field"><div class="field-label">Persona</div><div class="field-value">${escapeHtml(tc.Persona)}</div></div>` : ''}
+  ${tc['Pre-conditions'] ? `<div class="field"><div class="field-label">Pre-conditions</div><div class="field-value">${escapeHtml(tc['Pre-conditions'])}</div></div>` : ''}
+  ${steps.length > 0 ? `
+    <div class="field">
+      <div class="field-label">Steps</div>
+      ${steps.map((step, idx) => {
+        const rawState = (f.stepChecks || {})[idx];
+        const stepState = (rawState === 'done' || rawState === true) ? 'done' : (rawState === 'blocked' ? 'blocked' : 'none');
+        const stepNote = (f.stepNotes || {})[idx];
+        const rowCls = stepState === 'done' ? 'checked' : (stepState === 'blocked' ? 'blocked' : '');
+        const checkCls = stepState === 'done' ? 'checked' : (stepState === 'blocked' ? 'blocked' : '');
+        const mark = stepState === 'done' ? '✓' : (stepState === 'blocked' ? '✕' : '');
+        return `
+          <div class="step-row ${rowCls}">
+            <div class="step-check ${checkCls}">${mark}</div>
+            <div class="step-num">${idx + 1}.</div>
+            <div class="step-content">
+              <div class="step-text">${escapeHtml(step)}${stepState === 'blocked' ? ' <span style="color:#dc2626;font-weight:600;font-size:11px;">(unable to proceed)</span>' : ''}</div>
+              ${stepNote ? `<div class="step-note"><strong>Note:</strong> ${escapeHtml(stepNote)}</div>` : ''}
+            </div>
+          </div>
+        `;
+      }).join('')}
+    </div>
+  ` : ''}
+  ${tc['Expected Result'] ? `<div class="field"><div class="field-label">Expected Result</div><div class="field-value">${escapeHtml(tc['Expected Result'])}</div></div>` : ''}
+
+  <div class="findings">
+    <div class="findings-title">Tester Findings</div>
+    ${f.testedBy ? `<div class="field"><div class="field-label">Tested By</div><div class="field-value">${escapeHtml(f.testedBy)}</div></div>` : ''}
+    <div class="field"><div class="field-label">Overall Notes</div><div class="field-value">${escapeHtml(f.notes) || '<em style="color:#9ca3af">No notes</em>'}</div></div>
+    ${f.screenshots && f.screenshots.length > 0 ? `
+      <div class="field-label">Screenshots (${f.screenshots.length})</div>
+      <div class="screenshots">
+        ${f.screenshots.map((s, sidx) => `<div class="screenshot" data-src="${s.data}" data-name="${escapeHtml(s.name)}" data-fig="Fig. ${sidx + 1}"><div class="fig-label">Fig. ${sidx + 1}</div><img src="${s.data}" alt="${escapeHtml(s.name)}"><div class="screenshot-name">${escapeHtml(s.name)}</div></div>`).join('')}
+      </div>
+    ` : ''}
+    <div class="field" style="margin-top: 12px;"><div class="field-label">Final Status</div><div class="field-value"><span class="badge badge-${statusClass}">${escapeHtml(f.status || 'Not Tested')}</span></div></div>
+
+    <div class="prompt-block">
+      <div class="prompt-header">
+        <span class="prompt-label">📋 Copy-paste prompt for Claude / dev chat</span>
+        <button class="copy-btn" data-target="${promptId}">Copy</button>
+      </div>
+      <div class="prompt-text" id="${promptId}">${escapeHtml(promptText)}</div>
+    </div>
+  </div>
+</div>`;
 }).join('')}
-<div class="lightbox" id="lightbox" onclick="closeLightbox(event)"><button class="lightbox-close" onclick="closeLightbox(event)">&times;</button><img id="lightbox-img" src="" alt=""><div class="lightbox-caption" id="lightbox-caption"></div></div>
+
+<div class="lightbox" id="lightbox" onclick="closeLightbox(event)">
+  <button class="lightbox-close" onclick="closeLightbox(event)">&times;</button>
+  <img id="lightbox-img" src="" alt="">
+  <div class="lightbox-caption" id="lightbox-caption"></div>
+</div>
+
 <script>
-(function(){var lb=document.getElementById('lightbox'),li=document.getElementById('lightbox-img'),lc=document.getElementById('lightbox-caption');
-document.querySelectorAll('.screenshot').forEach(function(el){el.addEventListener('click',function(){li.src=el.getAttribute('data-src');var f=el.getAttribute('data-fig'),n=el.getAttribute('data-name');lc.textContent=f?(f+' — '+n):n;lb.classList.add('open');});});
-window.closeLightbox=function(e){if(e.target===lb||e.target.classList.contains('lightbox-close')||e.target.tagName==='BUTTON'){lb.classList.remove('open');li.src='';}};
-document.addEventListener('keydown',function(e){if(e.key==='Escape'&&lb.classList.contains('open')){lb.classList.remove('open');li.src='';}});
-document.querySelectorAll('.copy-btn').forEach(function(b){b.addEventListener('click',function(){var t=document.getElementById(b.getAttribute('data-target'));if(!t)return;var x=t.textContent||t.innerText,o=b.textContent,d=function(){b.textContent='✓ Copied';b.classList.add('copied');setTimeout(function(){b.textContent=o;b.classList.remove('copied');},2000);};if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(x).then(d).catch(function(){var ta=document.createElement('textarea');ta.value=x;document.body.appendChild(ta);ta.select();try{document.execCommand('copy');d();}catch(e){}document.body.removeChild(ta);});}else{var ta=document.createElement('textarea');ta.value=x;document.body.appendChild(ta);ta.select();try{document.execCommand('copy');d();}catch(e){}document.body.removeChild(ta);}});});
-})();
-<\/script></body></html>`;
-      const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url; a.download = `test-case-report-${new Date().toISOString().split('T')[0]}.html`;
-      document.body.appendChild(a); a.click(); document.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
-      setShowExportMenu(false);
-    } catch (err) { alert('Export failed: ' + err.message); }
+  (function() {
+    var lightbox = document.getElementById('lightbox');
+    var lightboxImg = document.getElementById('lightbox-img');
+    var lightboxCaption = document.getElementById('lightbox-caption');
+    document.querySelectorAll('.screenshot').forEach(function(el) {
+      el.addEventListener('click', function() {
+        lightboxImg.src = el.getAttribute('data-src');
+        var fig = el.getAttribute('data-fig');
+        var name = el.getAttribute('data-name');
+        lightboxCaption.textContent = fig ? (fig + ' — ' + name) : name;
+        lightbox.classList.add('open');
+      });
+    });
+    window.closeLightbox = function(e) {
+      if (e.target === lightbox || e.target.classList.contains('lightbox-close') || e.target.tagName === 'BUTTON') {
+        lightbox.classList.remove('open');
+        lightboxImg.src = '';
+      }
+    };
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape' && lightbox.classList.contains('open')) {
+        lightbox.classList.remove('open');
+        lightboxImg.src = '';
+      }
+    });
+
+    // Copy-to-clipboard handlers for prompt blocks
+    document.querySelectorAll('.copy-btn').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var targetId = btn.getAttribute('data-target');
+        var target = document.getElementById(targetId);
+        if (!target) return;
+        var text = target.textContent || target.innerText;
+        var originalLabel = btn.textContent;
+        var done = function() {
+          btn.textContent = '✓ Copied';
+          btn.classList.add('copied');
+          setTimeout(function() {
+            btn.textContent = originalLabel;
+            btn.classList.remove('copied');
+          }, 2000);
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(done).catch(function() {
+            // Fallback
+            var ta = document.createElement('textarea');
+            ta.value = text;
+            document.body.appendChild(ta);
+            ta.select();
+            try { document.execCommand('copy'); done(); } catch (e) {}
+            document.body.removeChild(ta);
+          });
+        } else {
+          var ta = document.createElement('textarea');
+          ta.value = text;
+          document.body.appendChild(ta);
+          ta.select();
+          try { document.execCommand('copy'); done(); } catch (e) {}
+          document.body.removeChild(ta);
+        }
+      });
+    });
+  })();
+<\/script>
+</body>
+</html>`;
+
+    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `openmaison-uat-report-${new Date().toISOString().split('T')[0]}.html`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    setShowExportMenu(false);
+    console.log('HTML export complete');
+    } catch (err) {
+      console.error('Export error:', err);
+      alert('Export failed: ' + err.message);
+    }
   };
 
   const exportCSV = () => {
     try {
-      const rows = testCases.map((tc,i) => {
+      console.log('Starting CSV export...');
+      const rows = testCases.map((tc, i) => {
         const f = findings[tc.__id] || {};
-        const sn = (f.screenshots||[]).map((s,idx) => `${tc['Test ID']||`TC-${i+1}`}_${idx+1}_${s.name}`).join('; ');
-        const stn = (tc.__steps||[]).map((step,idx) => {
-          const rs = (f.stepChecks||{})[idx];
-          const m = (rs==='done'||rs===true)?'[✓]':(rs==='blocked'?'[✕ blocked]':'[ ]');
-          const note = (f.stepNotes||{})[idx]||'';
-          return `${m} Step ${idx+1}${note?': '+note:''}`;
+        const screenshotNames = (f.screenshots || []).map((s, idx) => `${tc['Test ID'] || `TC-${i+1}`}_${idx + 1}_${s.name}`).join('; ');
+        const stepNotes = (tc.__steps || []).map((step, idx) => {
+          const checked = (f.stepChecks || {})[idx] ? '[✓]' : '[ ]';
+          const note = (f.stepNotes || {})[idx] || '';
+          return `${checked} Step ${idx + 1}${note ? ': ' + note : ''}`;
         }).join('\n');
-        const { __id, __steps, ...c } = tc;
-        return { ...c, Status: f.status||'Not Tested', 'Tested By': f.testedBy||'', Notes: f.notes||'', 'Step Notes': stn, Screenshots: sn };
+        const { __id, __steps, ...cleanTc } = tc;
+        return {
+          ...cleanTc,
+          Status: f.status || 'Not Tested',
+          'Tested By': f.testedBy || '',
+          Notes: f.notes || '',
+          'Step Notes': stepNotes,
+          Screenshots: screenshotNames,
+        };
       });
       const csv = Papa.unparse(rows);
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = url; a.download = `test-case-findings-${new Date().toISOString().split('T')[0]}.csv`;
-      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      a.href = url;
+      a.download = `openmaison-uat-findings-${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
       setTimeout(() => URL.revokeObjectURL(url), 1000);
-      testCases.forEach((tc,i) => {
-        const f = findings[tc.__id]; if (!f?.screenshots) return;
-        f.screenshots.forEach((shot,idx) => {
+
+      testCases.forEach((tc, i) => {
+        const f = findings[tc.__id];
+        if (!f?.screenshots) return;
+        f.screenshots.forEach((shot, idx) => {
           const a2 = document.createElement('a');
-          a2.href = shot.data; a2.download = `${tc['Test ID']||`TC-${i+1}`}_${idx+1}_${shot.name}`;
-          document.body.appendChild(a2); a2.click(); document.body.removeChild(a2);
+          a2.href = shot.data;
+          a2.download = `${tc['Test ID'] || `TC-${i+1}`}_${idx + 1}_${shot.name}`;
+          document.body.appendChild(a2);
+          a2.click();
+          document.body.removeChild(a2);
         });
       });
       setShowExportMenu(false);
-    } catch (err) { alert('CSV export failed: ' + err.message); }
+      console.log('CSV export complete');
+    } catch (err) {
+      console.error('CSV export error:', err);
+      alert('CSV export failed: ' + err.message);
+    }
   };
 
   const filteredCases = testCases.filter(tc => {
-    const s = findings[tc.__id]?.status || 'Not Tested';
-    if (filterStatus !== 'All' && s !== filterStatus) return false;
+    const status = findings[tc.__id]?.status || 'Not Tested';
+    if (filterStatus !== 'All' && status !== filterStatus) return false;
     if (!search) return true;
     const q = search.toLowerCase();
-    return (tc['Test ID']||'').toLowerCase().includes(q) || (tc['Test Case']||'').toLowerCase().includes(q) || (tc.Module||'').toLowerCase().includes(q);
+    return (
+      (tc['Test ID'] || '').toLowerCase().includes(q) ||
+      (tc['Test Case'] || '').toLowerCase().includes(q) ||
+      (tc.Module || '').toLowerCase().includes(q)
+    );
   });
 
   const currentCase = testCases[currentIdx];
-  const currentFinding = currentCase ? (findings[currentCase.__id] || { status:'Not Tested', testedBy:'', notes:'', screenshots:[], stepNotes:{}, stepChecks:{} }) : null;
-  const statusCounts = STATUS_OPTIONS.reduce((a,s) => { a[s.value] = testCases.filter(t => (findings[t.__id]?.status||'Not Tested')===s.value).length; return a; }, {});
+  const currentFinding = currentCase ? (findings[currentCase.__id] || { status: 'Not Tested', testedBy: '', notes: '', screenshots: [], stepNotes: {}, stepChecks: {} }) : null;
+
+  const statusCounts = STATUS_OPTIONS.reduce((acc, s) => {
+    acc[s.value] = testCases.filter(t => (findings[t.__id]?.status || 'Not Tested') === s.value).length;
+    return acc;
+  }, {});
+
   const completed = testCases.length - statusCounts['Not Tested'];
 
-  useEffect(() => { if (pageRef.current) pageRef.current.scrollTop = 0; setEditingSteps(false); setDragIdx(null); setDragOverIdx(null); }, [currentIdx]);
+  useEffect(() => {
+    if (pageRef.current) pageRef.current.scrollTop = 0;
+    setEditingSteps(false);
+    setDragIdx(null);
+    setDragOverIdx(null);
+  }, [currentIdx]);
 
-  if (!loaded) return <div className="min-h-screen flex items-center justify-center bg-gray-950"><div className="text-gray-400">Loading...</div></div>;
+  if (!loaded) {
+    return <div className="min-h-screen flex items-center justify-center bg-gray-950"><div className="text-gray-400">Loading...</div></div>;
+  }
 
   if (testCases.length === 0 || showUploadScreen) {
     return <UploadScreen
-      onLoad={(file, list) => { handleFile(file, list); setShowUploadScreen(false); }}
+      onLoad={async (file, list) => {
+        const result = await handleFile(file, list);
+        if (result?.success) setShowUploadScreen(false);
+        return result;
+      }}
       fileInputRef={fileInputRef}
       hasExistingData={testCases.length > 0}
       onBack={() => setShowUploadScreen(false)}
@@ -659,12 +926,47 @@ document.querySelectorAll('.copy-btn').forEach(function(b){b.addEventListener('c
 
   const statusCfg = getStatusConfig(currentFinding?.status);
   const steps = currentCase.__steps || [];
-  const getStepState = (idx) => { const v = (currentFinding.stepChecks||{})[idx]; if (v==='done'||v===true) return 'done'; if (v==='blocked') return 'blocked'; return 'none'; };
-  const stepsChecked = steps.filter((_,idx) => getStepState(idx)==='done').length;
-  const stepsBlocked = steps.filter((_,idx) => getStepState(idx)==='blocked').length;
+  const getStepState = (idx) => {
+    const v = (currentFinding.stepChecks || {})[idx];
+    if (v === 'done' || v === true) return 'done';
+    if (v === 'blocked') return 'blocked';
+    return 'none';
+  };
+  const stepsChecked = steps.filter((_, idx) => getStepState(idx) === 'done').length;
+  const stepsBlocked = steps.filter((_, idx) => getStepState(idx) === 'blocked').length;
 
   return (
     <div className="h-screen flex bg-gray-950 overflow-hidden text-gray-100 relative">
+      <style>{`
+        ::-webkit-scrollbar { width: 10px; height: 10px; }
+        ::-webkit-scrollbar-track { background: #0a0a0f; }
+        ::-webkit-scrollbar-thumb { background: #2a2a35; border-radius: 5px; border: 2px solid #0a0a0f; }
+        ::-webkit-scrollbar-thumb:hover { background: #3a3a48; }
+        ::-webkit-scrollbar-corner { background: #0a0a0f; }
+        * { scrollbar-color: #2a2a35 #0a0a0f; scrollbar-width: thin; }
+        .step-btn-preview { opacity: 0; transition: opacity 0.15s; }
+        .step-btn:hover .step-btn-preview { opacity: 1; }
+        .step-row-pencil { opacity: 0; transition: opacity 0.15s; }
+        .step-row:hover .step-row-pencil { opacity: 1; }
+        select.dark-select {
+          appearance: none;
+          -webkit-appearance: none;
+          -moz-appearance: none;
+          background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+          background-repeat: no-repeat;
+          background-position: right 0.75rem center;
+          background-size: 12px;
+          padding-right: 2.25rem !important;
+        }
+        select.dark-select::-ms-expand { display: none; }
+        /* Sidebar — mobile: overlay from top, desktop: side panel */
+        .sidebar-panel { width: 0; height: 100%; }
+        .sidebar-panel.sidebar-open { width: 100%; position: absolute; top: 0; left: 0; z-index: 40; height: 100%; border-bottom: 1px solid rgb(31 41 55); }
+        @media (min-width: 768px) {
+          .sidebar-panel { position: relative !important; height: 100% !important; }
+          .sidebar-panel.sidebar-open { width: 20rem; }
+        }
+      `}</style>
       <div className={`${sidebarOpen ? 'sidebar-open' : ''} sidebar-panel transition-all duration-200 bg-gray-900 border-r border-gray-800 flex flex-col overflow-hidden flex-shrink-0`}>
         <div className="p-4 border-b border-gray-800">
           <div className="flex items-center justify-between mb-3">
@@ -677,31 +979,48 @@ document.querySelectorAll('.copy-btn').forEach(function(b){b.addEventListener('c
             <span className="text-xs text-gray-400">{completed} / {testCases.length} done</span>
           </div>
           <div className="w-full bg-gray-800 rounded-full h-1.5 mb-3">
-            <div className="bg-indigo-500 h-1.5 rounded-full transition-all" style={{ width: `${(completed/testCases.length)*100}%` }} />
+            <div className="bg-indigo-500 h-1.5 rounded-full transition-all" style={{ width: `${(completed / testCases.length) * 100}%` }} />
           </div>
           {searchOpen ? (
             <div className="relative">
               <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
-              <input ref={searchInputRef} type="text" placeholder="Search..." value={search}
+              <input
+                ref={searchInputRef}
+                type="text"
+                placeholder="Search..."
+                value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Escape') { setSearch(''); setSearchOpen(false); } }}
-                className="w-full pl-9 pr-8 py-2 text-sm bg-gray-800 border border-gray-700 text-gray-100 placeholder-gray-500 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent" />
-              <button onClick={() => { setSearch(''); setSearchOpen(false); }} className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-gray-500 hover:text-gray-300 rounded" title="Close search">
-                <X className="w-3.5 h-3.5"/>
+                className="w-full pl-9 pr-8 py-2 text-sm bg-gray-800 border border-gray-700 text-gray-100 placeholder-gray-500 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              />
+              <button
+                onClick={() => { setSearch(''); setSearchOpen(false); }}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-gray-500 hover:text-gray-300 rounded"
+                title="Close search"
+              >
+                <X className="w-3.5 h-3.5" />
               </button>
             </div>
           ) : (
             <div className="flex items-center gap-2">
-              <button onClick={() => { setSearchOpen(true); setTimeout(() => searchInputRef.current?.focus(), 0); }}
+              <button
+                onClick={() => { setSearchOpen(true); setTimeout(() => searchInputRef.current?.focus(), 0); }}
                 className="flex-shrink-0 flex items-center justify-center bg-gray-800 border border-gray-700 text-gray-400 hover:text-indigo-300 hover:border-indigo-600 hover:bg-gray-700 rounded-md transition-colors"
-                style={{height:'38px',width:'38px'}} title="Search test cases">
-                <Search className="w-4 h-4"/>
+                style={{ height: '38px', width: '38px' }}
+                title="Search test cases"
+              >
+                <Search className="w-4 h-4" />
               </button>
-              <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
                 className="dark-select flex-1 min-w-0 px-3 text-sm bg-gray-800 border border-gray-700 text-gray-100 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                style={{height:'38px'}}>
+                style={{ height: '38px' }}
+              >
                 <option value="All">All Statuses ({testCases.length})</option>
-                {STATUS_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.value} ({statusCounts[s.value]})</option>)}
+                {STATUS_OPTIONS.map(s => (
+                  <option key={s.value} value={s.value}>{s.value} ({statusCounts[s.value]})</option>
+                ))}
               </select>
             </div>
           )}
@@ -725,13 +1044,17 @@ document.querySelectorAll('.copy-btn').forEach(function(b){b.addEventListener('c
                       <span className="text-xs font-mono text-gray-400 whitespace-nowrap flex-shrink-0">{tc['Test ID']}</span>
                       {tc.Module && <span className="text-xs text-gray-500 truncate">{tc.Module}</span>}
                     </div>
-                    <div className={`text-sm truncate ${isActive ? 'font-semibold text-indigo-300' : 'text-gray-200'}`}>{tc['Test Case']||'Untitled'}</div>
+                    <div className={`text-sm truncate ${isActive ? 'font-semibold text-indigo-300' : 'text-gray-200'}`}>
+                      {tc['Test Case'] || 'Untitled'}
+                    </div>
                   </div>
                 </div>
               </button>
             );
           })}
-          {filteredCases.length === 0 && <div className="p-6 text-center text-sm text-gray-500">No matching test cases</div>}
+          {filteredCases.length === 0 && (
+            <div className="p-6 text-center text-sm text-gray-500">No matching test cases</div>
+          )}
         </div>
         {(storageError || storageBytes > STORAGE_LIMIT_BYTES * STORAGE_WARN_AT) && (
           <div className={`p-3 border-t text-xs ${storageError ? 'bg-red-950/40 border-red-800 text-red-300' : 'bg-amber-950/40 border-amber-800 text-amber-300'}`}>
@@ -752,7 +1075,8 @@ document.querySelectorAll('.copy-btn').forEach(function(b){b.addEventListener('c
         )}
         {testers.length > 0 && (
           <div className="p-3 border-t border-gray-800 text-xs text-gray-400">
-            <Users className="w-3 h-3 inline mr-1" />{testers.length} tester{testers.length!==1?'s':''}: {testers.join(', ')}
+            <Users className="w-3 h-3 inline mr-1" />
+            {testers.length} tester{testers.length !== 1 ? 's' : ''}: {testers.join(', ')}
           </div>
         )}
       </div>
@@ -765,60 +1089,114 @@ document.querySelectorAll('.copy-btn').forEach(function(b){b.addEventListener('c
                 <PanelLeftOpen className="w-5 h-5 text-gray-300" />
               </button>
             )}
+            {/* Title row — hidden on mobile (shown below in second row) */}
             <div className="flex-1 min-w-0 hidden md:flex items-center gap-3">
               <span className="text-xs font-mono bg-indigo-950/60 text-indigo-300 px-2 py-1 rounded border border-indigo-800 flex-shrink-0">{currentCase['Test ID']}</span>
               <div className="min-w-0 flex-1">
-                <div className="text-base font-semibold text-gray-100 truncate">{currentCase['Test Case']||'Untitled'}</div>
+                <div className="text-base font-semibold text-gray-100 truncate">{currentCase['Test Case'] || 'Untitled'}</div>
                 {currentCase.Module && <div className="text-xs text-gray-400 truncate">{currentCase.Module}</div>}
               </div>
               <span className={`hidden lg:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border flex-shrink-0 ${statusCfg.color}`}>
-                <statusCfg.icon className="w-3.5 h-3.5" />{currentFinding.status}
+                <statusCfg.icon className="w-3.5 h-3.5" />
+                {currentFinding.status}
               </span>
             </div>
+            {/* On mobile: just show "x / total" centered */}
             <div className="flex-1 text-center md:hidden">
-              <span className="text-xs text-gray-400">{currentIdx+1} / {testCases.length}</span>
+              <span className="text-xs text-gray-400">{currentIdx + 1} / {testCases.length}</span>
             </div>
             <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
-              <span className="text-xs text-gray-500 hidden lg:inline">{currentIdx+1} / {testCases.length}</span>
-              <button onClick={() => setCurrentIdx(Math.max(0,currentIdx-1))} disabled={currentIdx===0} className="p-2 text-gray-300 hover:bg-gray-800 rounded-md disabled:opacity-30 disabled:cursor-not-allowed"><ChevronLeft className="w-5 h-5"/></button>
-              <button onClick={() => setCurrentIdx(Math.min(testCases.length-1,currentIdx+1))} disabled={currentIdx===testCases.length-1} className="p-2 text-gray-300 hover:bg-gray-800 rounded-md disabled:opacity-30 disabled:cursor-not-allowed"><ChevronRight className="w-5 h-5"/></button>
+              <span className="text-xs text-gray-500 hidden lg:inline">{currentIdx + 1} / {testCases.length}</span>
+              <button
+                onClick={() => setCurrentIdx(Math.max(0, currentIdx - 1))}
+                disabled={currentIdx === 0}
+                className="p-2 text-gray-300 hover:bg-gray-800 rounded-md disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </button>
+              <button
+                onClick={() => setCurrentIdx(Math.min(testCases.length - 1, currentIdx + 1))}
+                disabled={currentIdx === testCases.length - 1}
+                className="p-2 text-gray-300 hover:bg-gray-800 rounded-md disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                <ChevronRight className="w-5 h-5" />
+              </button>
               <div className="w-px h-6 bg-gray-700 mx-0.5 sm:mx-1" />
-              <button onClick={() => setShowUploadScreen(true)} title="Back to upload screen" className="p-2 text-gray-300 hover:bg-gray-800 hover:text-indigo-400 rounded-md transition-colors"><Home className="w-5 h-5"/></button>
-              <button onClick={() => setShowResetConfirm(true)} title="Reset all data" className="p-2 text-gray-300 hover:bg-red-950 hover:text-red-400 rounded-md transition-colors"><RotateCcw className="w-5 h-5"/></button>
+              <Tooltip label="Back to upload screen">
+                <button
+                  onClick={() => setShowUploadScreen(true)}
+                  className="p-2 text-gray-300 hover:bg-gray-800 hover:text-indigo-400 rounded-md transition-colors"
+                >
+                  <Home className="w-5 h-5" />
+                </button>
+              </Tooltip>
+              <Tooltip label="Reset all data">
+                <button
+                  onClick={() => setShowResetConfirm(true)}
+                  className="p-2 text-gray-300 hover:bg-red-950 hover:text-red-400 rounded-md transition-colors"
+                >
+                  <RotateCcw className="w-5 h-5" />
+                </button>
+              </Tooltip>
               <div className="w-px h-6 bg-gray-700 mx-0.5 sm:mx-1" />
               <div className="relative">
-                <button onClick={() => setShowExportMenu(!showExportMenu)} className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md hover:bg-indigo-500">
-                  <Download className="w-4 h-4"/><span className="hidden sm:inline">Export</span>
+                <button
+                  onClick={() => setShowExportMenu(!showExportMenu)}
+                  className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md hover:bg-indigo-500"
+                >
+                  <Download className="w-4 h-4" />
+                  <span className="hidden sm:inline">Export</span>
                 </button>
                 {showExportMenu && (
                   <>
                     <div className="fixed inset-0 z-10" onClick={() => setShowExportMenu(false)} />
                     <div className="absolute right-0 top-full mt-1 bg-gray-800 border border-gray-700 rounded-md shadow-xl z-20 w-56">
-                      <button onClick={exportHTML} className="w-full text-left px-4 py-2.5 text-sm text-gray-100 hover:bg-gray-700 flex items-center gap-2"><FileText className="w-4 h-4 text-indigo-400"/><div><div className="font-medium">HTML Report</div><div className="text-xs text-gray-400">With embedded screenshots</div></div></button>
-                      <button onClick={exportCSV} className="w-full text-left px-4 py-2.5 text-sm text-gray-100 hover:bg-gray-700 flex items-center gap-2 border-t border-gray-700"><FileDown className="w-4 h-4 text-indigo-400"/><div><div className="font-medium">CSV + Screenshots</div><div className="text-xs text-gray-400">Findings CSV + image files</div></div></button>
+                      <button onClick={exportHTML} className="w-full text-left px-4 py-2.5 text-sm text-gray-100 hover:bg-gray-700 flex items-center gap-2">
+                        <FileText className="w-4 h-4 text-indigo-400" />
+                        <div>
+                          <div className="font-medium">HTML Report</div>
+                          <div className="text-xs text-gray-400">With embedded screenshots</div>
+                        </div>
+                      </button>
+                      <button onClick={exportCSV} className="w-full text-left px-4 py-2.5 text-sm text-gray-100 hover:bg-gray-700 flex items-center gap-2 border-t border-gray-700">
+                        <FileDown className="w-4 h-4 text-indigo-400" />
+                        <div>
+                          <div className="font-medium">CSV + Screenshots</div>
+                          <div className="text-xs text-gray-400">Findings CSV + image files</div>
+                        </div>
+                      </button>
                     </div>
                   </>
                 )}
               </div>
             </div>
           </div>
+          {/* Second row on mobile only: title + status */}
           <div className="md:hidden px-3 pb-2.5 pt-0 flex items-center gap-2">
             <span className="text-xs font-mono bg-indigo-950/60 text-indigo-300 px-2 py-0.5 rounded border border-indigo-800 flex-shrink-0">{currentCase['Test ID']}</span>
             <div className="min-w-0 flex-1">
-              <div className="text-sm font-semibold text-gray-100 truncate">{currentCase['Test Case']||'Untitled'}</div>
+              <div className="text-sm font-semibold text-gray-100 truncate">{currentCase['Test Case'] || 'Untitled'}</div>
               {currentCase.Module && <div className="text-[11px] text-gray-400 truncate">{currentCase.Module}</div>}
             </div>
             <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border flex-shrink-0 ${statusCfg.color}`}>
-              <statusCfg.icon className="w-3 h-3"/>
+              <statusCfg.icon className="w-3 h-3" />
+              <span className="hidden xs:inline">{currentFinding.status}</span>
             </span>
           </div>
         </div>
 
         <div ref={pageRef} className="flex-1 overflow-hidden">
+          <style>{`
+            @media (min-width: 1200px) {
+              .split-container { flex-direction: row !important; overflow: hidden !important; }
+              .split-column { overflow-y: auto !important; }
+            }
+          `}</style>
           <div className="split-container h-full flex flex-col gap-3 p-3 overflow-y-auto">
+            {/* LEFT COLUMN — Test case info */}
             <div className="split-column flex-1 min-w-0">
               <div className="bg-gray-900 rounded-lg border border-gray-800 shadow-sm overflow-hidden">
-                <div className="px-5 py-3 border-b border-gray-800 sticky top-0 z-10" style={{backgroundColor:SURFACE_DARK}}>
+                <div className="px-5 border-b border-gray-800 sticky top-0 z-10 flex items-center" style={{ backgroundColor: SURFACE_DARK, height: '52px' }}>
                   <h2 className="font-bold text-gray-100">Details & Steps</h2>
                 </div>
                 <div className="p-5 space-y-4">
@@ -828,11 +1206,17 @@ document.querySelectorAll('.copy-btn').forEach(function(b){b.addEventListener('c
                       {currentCase['Pre-conditions'] && <Field label="Pre-conditions" value={currentCase['Pre-conditions']} />}
                     </div>
                   )}
-                  {steps.length === 0 && currentCase.Steps && <Field label="Steps (raw — parser found no steps)" value={currentCase.Steps} />}
+
+                  {steps.length === 0 && currentCase.Steps && (
+                    <Field label="Steps (raw — parser found no steps)" value={currentCase.Steps} />
+                  )}
                   {steps.length === 0 && !currentCase.Steps && (
                     <div className="text-center py-3">
-                      <button onClick={() => { addStep(); setEditingSteps(true); }} className="inline-flex items-center gap-2 px-3 py-1.5 border border-dashed border-gray-700 text-gray-400 hover:border-indigo-500 hover:text-indigo-300 hover:bg-indigo-950/20 rounded-md text-sm transition-colors">
-                        <Plus className="w-4 h-4"/> Start a checklist
+                      <button
+                        onClick={() => { addStep(); setEditingSteps(true); }}
+                        className="inline-flex items-center gap-2 px-3 py-1.5 border border-dashed border-gray-700 text-gray-400 hover:border-indigo-500 hover:text-indigo-300 hover:bg-indigo-950/20 rounded-md text-sm transition-colors"
+                      >
+                        <Plus className="w-4 h-4" /> Start a checklist
                       </button>
                     </div>
                   )}
@@ -841,11 +1225,15 @@ document.querySelectorAll('.copy-btn').forEach(function(b){b.addEventListener('c
                       <div className="flex items-center justify-between mb-2">
                         <div className="text-xs font-semibold uppercase tracking-wider text-gray-400">Steps Checklist</div>
                         <div className="flex items-center gap-2">
-                          <div className="text-xs text-gray-400">{stepsChecked} done{stepsBlocked>0?<span className="text-red-400"> · {stepsBlocked} blocked</span>:null} · {steps.length} total</div>
-                          <button onClick={() => setEditingSteps(!editingSteps)}
-                            className={`flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium border transition-colors ${editingSteps?'bg-indigo-600 border-indigo-600 text-white':'border-gray-700 text-gray-400 hover:text-indigo-300 hover:border-indigo-700'}`}
-                            title={editingSteps?'Done editing':'Edit steps'}>
-                            {editingSteps ? <><Check className="w-3 h-3"/>Done</> : <><Settings2 className="w-3 h-3"/>Edit</>}
+                          <div className="text-xs text-gray-400">
+                            {stepsChecked} done{stepsBlocked > 0 ? <span className="text-red-400"> · {stepsBlocked} blocked</span> : null} · {steps.length} total
+                          </div>
+                          <button
+                            onClick={() => setEditingSteps(!editingSteps)}
+                            className={`flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium border transition-colors ${editingSteps ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-gray-700 text-gray-400 hover:text-indigo-300 hover:border-indigo-700'}`}
+                            title={editingSteps ? 'Done editing' : 'Edit steps'}
+                          >
+                            {editingSteps ? <><Check className="w-3 h-3" />Done</> : <><Settings2 className="w-3 h-3" />Edit</>}
                           </button>
                         </div>
                       </div>
@@ -854,48 +1242,85 @@ document.querySelectorAll('.copy-btn').forEach(function(b){b.addEventListener('c
                           const state = getStepState(idx);
                           const checked = state === 'done';
                           const blocked = state === 'blocked';
-                          const note = (currentFinding.stepNotes||{})[idx] || '';
-                          const noteOpen = (currentFinding.stepNoteOpen||{})[idx];
+                          const note = (currentFinding.stepNotes || {})[idx] || '';
+                          const noteOpen = (currentFinding.stepNoteOpen || {})[idx];
                           const showNoteField = noteOpen || note.length > 0;
                           const rowBg = checked ? 'bg-green-950/40 border-green-800' : blocked ? 'bg-red-950/40 border-red-800' : 'border-gray-700';
                           const isDragOver = dragOverIdx === idx && dragIdx !== idx;
                           return (
-                            <div key={idx}
+                            <div
+                              key={idx}
                               draggable={editingSteps}
-                              onDragStart={editingSteps ? (e) => { setDragIdx(idx); e.dataTransfer.effectAllowed='move'; try { e.dataTransfer.setData('text/plain', String(idx)); } catch{} } : undefined}
-                              onDragOver={editingSteps ? (e) => { e.preventDefault(); e.dataTransfer.dropEffect='move'; if (dragOverIdx !== idx) setDragOverIdx(idx); } : undefined}
-                              onDragLeave={editingSteps ? () => { if (dragOverIdx === idx) setDragOverIdx(null); } : undefined}
-                              onDrop={editingSteps ? (e) => { e.preventDefault(); if (dragIdx != null && dragIdx !== idx) reorderSteps(dragIdx, idx); setDragIdx(null); setDragOverIdx(null); } : undefined}
+                              onDragStart={editingSteps ? (e) => {
+                                setDragIdx(idx);
+                                e.dataTransfer.effectAllowed = 'move';
+                                try { e.dataTransfer.setData('text/plain', String(idx)); } catch {}
+                              } : undefined}
+                              onDragOver={editingSteps ? (e) => {
+                                e.preventDefault();
+                                e.dataTransfer.dropEffect = 'move';
+                                if (dragOverIdx !== idx) setDragOverIdx(idx);
+                              } : undefined}
+                              onDragLeave={editingSteps ? () => {
+                                if (dragOverIdx === idx) setDragOverIdx(null);
+                              } : undefined}
+                              onDrop={editingSteps ? (e) => {
+                                e.preventDefault();
+                                if (dragIdx != null && dragIdx !== idx) reorderSteps(dragIdx, idx);
+                                setDragIdx(null);
+                                setDragOverIdx(null);
+                              } : undefined}
                               onDragEnd={editingSteps ? () => { setDragIdx(null); setDragOverIdx(null); } : undefined}
-                              className={`step-row border rounded-md px-3 py-2 transition-colors ${rowBg} ${editingSteps?'cursor-move':''} ${dragIdx===idx?'opacity-40':''} ${isDragOver?'ring-2 ring-indigo-500':''}`}
-                              style={(!checked&&!blocked)?{backgroundColor:SURFACE_DARK}:{}}>
+                              className={`step-row border rounded-md px-3 py-2 transition-colors ${rowBg} ${editingSteps ? 'cursor-move' : ''} ${dragIdx === idx ? 'opacity-40' : ''} ${isDragOver ? 'ring-2 ring-indigo-500' : ''}`}
+                              style={(!checked && !blocked) ? { backgroundColor: SURFACE_DARK } : {}}
+                            >
                               <div className="flex items-start gap-2">
-                                {editingSteps && <GripVertical className="w-4 h-4 text-gray-500 flex-shrink-0 mt-1"/>}
-                                <span className="font-bold text-indigo-400 flex-shrink-0 text-sm leading-relaxed">{idx+1}.</span>
+                                {editingSteps && (
+                                  <GripVertical className="w-4 h-4 text-gray-500 flex-shrink-0 mt-1" />
+                                )}
+                                <span className="font-bold text-indigo-400 flex-shrink-0 text-sm leading-relaxed">{idx + 1}.</span>
                                 <div className="flex-1 min-w-0">
                                   {editingSteps ? (
-                                    <textarea value={step} onChange={(e) => updateStepText(idx, e.target.value)} placeholder="Step description..." rows={1}
+                                    <textarea
+                                      value={step}
+                                      onChange={(e) => updateStepText(idx, e.target.value)}
+                                      placeholder="Step description..."
+                                      rows={1}
                                       className="w-full px-2 py-1 text-sm bg-gray-900 border border-gray-700 text-gray-100 placeholder-gray-500 rounded focus:outline-none focus:ring-1 focus:ring-indigo-400 focus:border-indigo-400 resize-y"
-                                      onMouseDown={(e) => e.stopPropagation()} />
+                                      onMouseDown={(e) => e.stopPropagation()}
+                                    />
                                   ) : (
                                     <>
                                       <div className="flex items-start gap-2">
-                                        <span className={`text-sm whitespace-pre-wrap flex-1 leading-relaxed ${checked?'text-gray-400':blocked?'text-red-200':'text-gray-100'}`}>{step}</span>
+                                        <span className={`text-sm whitespace-pre-wrap flex-1 leading-relaxed ${checked ? 'text-gray-400' : blocked ? 'text-red-200' : 'text-gray-100'}`}>{step}</span>
                                         {!showNoteField && (
-                                          <button onClick={() => updateFinding(currentCase.__id, 'stepNoteOpen', { ...(currentFinding.stepNoteOpen||{}), [idx]: true })}
-                                            className="step-row-pencil flex-shrink-0 p-1 text-gray-500 hover:text-indigo-400 hover:bg-gray-800 rounded transition-colors" title="Add note">
-                                            <Pencil className="w-3.5 h-3.5"/>
+                                          <button
+                                            onClick={() => updateFinding(currentCase.__id, 'stepNoteOpen', { ...(currentFinding.stepNoteOpen || {}), [idx]: true })}
+                                            className="step-row-pencil flex-shrink-0 p-1 text-gray-500 hover:text-indigo-400 hover:bg-gray-800 rounded transition-colors"
+                                            title="Add note"
+                                          >
+                                            <Pencil className="w-3.5 h-3.5" />
                                           </button>
                                         )}
                                       </div>
                                       {showNoteField && (
                                         <div className="relative mt-1.5">
-                                          <textarea value={note} onChange={(e) => updateStepNote(currentCase.__id, idx, e.target.value)}
-                                            placeholder="Notes for this step..." rows={1} autoFocus={noteOpen && !note}
-                                            className="w-full px-2 py-1 pr-7 text-sm bg-gray-900 border border-gray-700 text-gray-100 placeholder-gray-500 rounded focus:outline-none focus:ring-1 focus:ring-indigo-400 focus:border-indigo-400 resize-y" />
+                                          <textarea
+                                            value={note}
+                                            onChange={(e) => updateStepNote(currentCase.__id, idx, e.target.value)}
+                                            placeholder="Notes for this step..."
+                                            rows={1}
+                                            autoFocus={noteOpen && !note}
+                                            className="w-full px-2 py-1 pr-7 text-sm bg-gray-900 border border-gray-700 text-gray-100 placeholder-gray-500 rounded focus:outline-none focus:ring-1 focus:ring-indigo-400 focus:border-indigo-400 resize-y"
+                                          />
                                           {!note && (
-                                            <button onClick={() => updateFinding(currentCase.__id, 'stepNoteOpen', { ...(currentFinding.stepNoteOpen||{}), [idx]: false })}
-                                              className="absolute top-1 right-1 p-0.5 text-gray-500 hover:text-gray-300 rounded" title="Hide note field"><X className="w-3 h-3"/></button>
+                                            <button
+                                              onClick={() => updateFinding(currentCase.__id, 'stepNoteOpen', { ...(currentFinding.stepNoteOpen || {}), [idx]: false })}
+                                              className="absolute top-1 right-1 p-0.5 text-gray-500 hover:text-gray-300 rounded"
+                                              title="Hide note field"
+                                            >
+                                              <X className="w-3 h-3" />
+                                            </button>
                                           )}
                                         </div>
                                       )}
@@ -903,26 +1328,38 @@ document.querySelectorAll('.copy-btn').forEach(function(b){b.addEventListener('c
                                   )}
                                 </div>
                                 {editingSteps ? (
-                                  <button onClick={() => deleteStep(idx)} className="flex-shrink-0 p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-950/40 rounded transition-colors" title="Delete step">
-                                    <Trash2 className="w-4 h-4"/>
+                                  <button
+                                    onClick={() => deleteStep(idx)}
+                                    className="flex-shrink-0 p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-950/40 rounded transition-colors"
+                                    title="Delete step"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
                                   </button>
                                 ) : (
                                   <div className="flex flex-col gap-1 flex-shrink-0 ml-1">
-                                    <button onClick={() => toggleStepCheck(currentCase.__id, idx)}
-                                      className={`step-btn rounded-md border-2 flex items-center justify-center transition-all ${checked?'bg-green-600 border-green-600 text-white hover:bg-green-500':'border-gray-600 hover:border-green-500 hover:bg-green-950/40'}`}
-                                      style={{width:'26px',height:'26px'}} title={checked?'Click to uncheck':'Mark as done'}>
-                                      <CheckCircle2 className={`w-4 h-4 ${checked?'':'step-btn-preview text-green-500'}`}/>
+                                    <button
+                                      onClick={() => toggleStepCheck(currentCase.__id, idx)}
+                                      className={`step-btn rounded-md border-2 flex items-center justify-center transition-all ${checked ? 'bg-green-600 border-green-600 text-white hover:bg-green-500' : 'border-gray-600 hover:border-green-500 hover:bg-green-950/40'}`}
+                                      style={{ width: '26px', height: '26px' }}
+                                      title={checked ? 'Click to uncheck' : 'Mark as done'}
+                                    >
+                                      <CheckCircle2 className={`w-4 h-4 ${checked ? '' : 'step-btn-preview text-green-500'}`} />
                                     </button>
-                                    <button onClick={() => {
-                                      setFindings(prev => {
-                                        const c = prev[currentCase.__id] || makeFinding();
-                                        const nc = { ...(c.stepChecks||{}) };
-                                        if (blocked) delete nc[idx]; else nc[idx] = 'blocked';
-                                        return { ...prev, [currentCase.__id]: { ...c, stepChecks: nc } };
-                                      });
-                                    }} className={`step-btn rounded-md border-2 flex items-center justify-center transition-all ${blocked?'bg-red-600 border-red-600 text-white hover:bg-red-500':'border-gray-600 hover:border-red-500 hover:bg-red-950/40'}`}
-                                      style={{width:'26px',height:'26px'}} title={blocked?'Click to clear':'Mark as unable to proceed'}>
-                                      <X className={`w-4 h-4 ${blocked?'':'step-btn-preview text-red-500'}`}/>
+                                    <button
+                                      onClick={() => {
+                                        setFindings(prev => {
+                                          const current = prev[currentCase.__id] || makeFinding();
+                                          const newChecks = { ...(current.stepChecks || {}) };
+                                          if (blocked) delete newChecks[idx];
+                                          else newChecks[idx] = 'blocked';
+                                          return { ...prev, [currentCase.__id]: { ...current, stepChecks: newChecks } };
+                                        });
+                                      }}
+                                      className={`step-btn rounded-md border-2 flex items-center justify-center transition-all ${blocked ? 'bg-red-600 border-red-600 text-white hover:bg-red-500' : 'border-gray-600 hover:border-red-500 hover:bg-red-950/40'}`}
+                                      style={{ width: '26px', height: '26px' }}
+                                      title={blocked ? 'Click to clear' : 'Mark as unable to proceed'}
+                                    >
+                                      <X className={`w-4 h-4 ${blocked ? '' : 'step-btn-preview text-red-500'}`} />
                                     </button>
                                   </div>
                                 )}
@@ -931,17 +1368,22 @@ document.querySelectorAll('.copy-btn').forEach(function(b){b.addEventListener('c
                           );
                         })}
                         {editingSteps && (
-                          <button onClick={addStep} className="w-full flex items-center justify-center gap-2 px-3 py-2 border-2 border-dashed border-gray-700 text-gray-400 hover:border-indigo-500 hover:text-indigo-300 hover:bg-indigo-950/20 rounded-md text-sm transition-colors">
-                            <Plus className="w-4 h-4"/> Add step
+                          <button
+                            onClick={addStep}
+                            className="w-full flex items-center justify-center gap-2 px-3 py-2 border-2 border-dashed border-gray-700 text-gray-400 hover:border-indigo-500 hover:text-indigo-300 hover:bg-indigo-950/20 rounded-md text-sm transition-colors"
+                          >
+                            <Plus className="w-4 h-4" /> Add step
                           </button>
                         )}
                       </div>
                     </div>
                   )}
+
                   {currentCase['Expected Result'] && (
                     <div>
                       <div className="text-xs font-bold uppercase tracking-wider text-amber-400 mb-1.5 flex items-center gap-1.5">
-                        <CheckCircle2 className="w-3.5 h-3.5"/>Expected Result
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        Expected Result
                       </div>
                       <div className="text-sm whitespace-pre-wrap bg-amber-950/30 border-l-4 border-amber-500 px-3 py-2 rounded text-amber-100">
                         {currentCase['Expected Result']}
@@ -952,94 +1394,145 @@ document.querySelectorAll('.copy-btn').forEach(function(b){b.addEventListener('c
               </div>
             </div>
 
+            {/* RIGHT COLUMN — Your Findings */}
             <div className="split-column flex-1 min-w-0">
               <div className="bg-gray-900 rounded-lg border border-gray-800 shadow-sm overflow-hidden">
-                <div className="px-5 py-3 border-b border-gray-800 sticky top-0 z-10" style={{backgroundColor:SURFACE_DARK}}>
+                <div className="px-6 py-4 border-b border-gray-800 bg-gray-850" style={{ backgroundColor: 'rgb(20 24 35)' }}>
                   <h2 className="font-bold text-gray-100">Findings</h2>
                 </div>
                 <div className="p-5 space-y-4 divide-y divide-gray-800/60">
                   <div>
                     <label className="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1.5">Tested By</label>
                     {testers.length > 0 ? (
-                      <select value={currentFinding.testedBy} onChange={(e) => handleTesterChange(currentCase.__id, e.target.value)}
-                        className="dark-select w-full px-3 py-2 bg-gray-800 border border-gray-700 text-gray-100 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                      <select
+                        value={currentFinding.testedBy}
+                        onChange={(e) => handleTesterChange(currentCase.__id, e.target.value)}
+                        className="dark-select w-full px-3 py-2 bg-gray-800 border border-gray-700 text-gray-100 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      >
                         <option value="">— Select tester —</option>
                         {testers.map(t => <option key={t} value={t}>{t}</option>)}
                       </select>
                     ) : (
-                      <input type="text" value={currentFinding.testedBy} onChange={(e) => handleTesterChange(currentCase.__id, e.target.value)} placeholder="Your name"
-                        className="w-full px-3 py-2 bg-gray-800 border border-gray-700 text-gray-100 placeholder-gray-500 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent" />
+                      <input
+                        type="text"
+                        value={currentFinding.testedBy}
+                        onChange={(e) => handleTesterChange(currentCase.__id, e.target.value)}
+                        placeholder="Your name"
+                        className="w-full px-3 py-2 bg-gray-800 border border-gray-700 text-gray-100 placeholder-gray-500 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      />
                     )}
                   </div>
+
                   <div className="pt-4">
                     <label className="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1.5">Overall Notes</label>
-                    <textarea value={currentFinding.notes} onChange={(e) => updateFinding(currentCase.__id, 'notes', e.target.value)} rows={4}
+                    <textarea
+                      value={currentFinding.notes}
+                      onChange={(e) => updateFinding(currentCase.__id, 'notes', e.target.value)}
+                      rows={4}
                       placeholder="Overall observations, summary of issues found, deviations from expected result..."
-                      className="w-full px-3 py-2 bg-gray-800 border border-gray-700 text-gray-100 placeholder-gray-500 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-y" />
+                      className="w-full px-3 py-2 bg-gray-800 border border-gray-700 text-gray-100 placeholder-gray-500 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-y"
+                    />
                   </div>
+
                   <div className="pt-4">
                     <label className="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1.5">
-                      Screenshots {currentFinding.screenshots.length>0 && <span className="normal-case font-normal text-gray-500">({currentFinding.screenshots.length})</span>}
+                      Screenshots {currentFinding.screenshots.length > 0 && <span className="normal-case font-normal text-gray-500">({currentFinding.screenshots.length})</span>}
                     </label>
-                    <div onClick={() => screenshotInputRef.current?.click()}
-                      onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add('border-indigo-500','bg-indigo-950/30'); }}
-                      onDragLeave={(e) => { e.currentTarget.classList.remove('border-indigo-500','bg-indigo-950/30'); }}
-                      onDrop={(e) => { e.preventDefault(); e.currentTarget.classList.remove('border-indigo-500','bg-indigo-950/30'); if (e.dataTransfer.files.length>0) addScreenshots(currentCase.__id, e.dataTransfer.files); }}
-                      className="border-2 border-dashed border-gray-700 rounded-md p-5 text-center cursor-pointer hover:border-indigo-500 hover:bg-indigo-950/20 transition-all">
-                      <ImageIcon className="w-7 h-7 text-gray-500 mx-auto mb-1.5"/>
+                    <div
+                      onClick={() => screenshotInputRef.current?.click()}
+                      onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add('border-indigo-500', 'bg-indigo-950/30'); }}
+                      onDragLeave={(e) => { e.currentTarget.classList.remove('border-indigo-500', 'bg-indigo-950/30'); }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        e.currentTarget.classList.remove('border-indigo-500', 'bg-indigo-950/30');
+                        if (e.dataTransfer.files.length > 0) addScreenshots(currentCase.__id, e.dataTransfer.files);
+                      }}
+                      className="border-2 border-dashed border-gray-700 rounded-md p-5 text-center cursor-pointer hover:border-indigo-500 hover:bg-indigo-950/20 transition-all"
+                    >
+                      <ImageIcon className="w-7 h-7 text-gray-500 mx-auto mb-1.5" />
                       <p className="text-sm text-gray-300">Click, drag, or paste screenshots</p>
                       <p className="text-xs text-gray-500 mt-0.5">💡 Tip: paste with Ctrl/Cmd+V</p>
-                      <input ref={screenshotInputRef} type="file" accept="image/*" multiple className="hidden"
-                        onChange={(e) => { if (e.target.files.length>0) addScreenshots(currentCase.__id, e.target.files); e.target.value=''; }} />
+                      <input
+                        ref={screenshotInputRef}
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        className="hidden"
+                        onChange={(e) => {
+                          if (e.target.files.length > 0) addScreenshots(currentCase.__id, e.target.files);
+                          e.target.value = '';
+                        }}
+                      />
                     </div>
                     {currentFinding.screenshots.length > 0 && (
-                      <div className="grid grid-cols-2 gap-2 mt-2">
+                      <div className="grid grid-cols-2 gap-3 mt-3">
                         {currentFinding.screenshots.map((shot, idx) => (
                           <div key={idx} className="relative group border border-gray-700 rounded-md overflow-hidden bg-gray-800">
-                            <div className="absolute top-1.5 left-1.5 z-10 bg-indigo-600 text-white text-xs font-bold px-1.5 py-0.5 rounded shadow-md">Fig. {idx+1}</div>
-                            <img src={shot.data} alt={shot.name} className="w-full h-28 object-cover"/>
+                            <div className="absolute top-2 left-2 z-10 bg-indigo-600 text-white text-xs font-bold px-2 py-0.5 rounded shadow-md">
+                              Fig. {idx + 1}
+                            </div>
+                            <img src={shot.data} alt={shot.name} className="w-full h-32 object-cover" />
                             <div className="absolute inset-0 bg-black/0 group-hover:bg-black/60 transition-colors flex items-center justify-center">
-                              <button onClick={() => removeScreenshot(currentCase.__id, idx)} className="opacity-0 group-hover:opacity-100 bg-red-600 text-white p-1.5 rounded-full hover:bg-red-500 transition-all">
-                                <Trash2 className="w-3.5 h-3.5"/>
+                              <button
+                                onClick={() => removeScreenshot(currentCase.__id, idx)}
+                                className="opacity-0 group-hover:opacity-100 bg-red-600 text-white p-2 rounded-full hover:bg-red-500 transition-all"
+                              >
+                                <Trash2 className="w-4 h-4" />
                               </button>
                             </div>
-                            <div className="px-1.5 py-0.5 text-[11px] text-gray-400 truncate bg-gray-900 border-t border-gray-700">{shot.name}</div>
+                            <div className="px-2 py-1 text-xs text-gray-400 truncate bg-gray-900 border-t border-gray-700">{shot.name}</div>
                           </div>
                         ))}
                       </div>
                     )}
                   </div>
+
                   <div className="pt-4">
                     <div className="flex items-center justify-between mb-1.5">
                       <label className="block text-xs font-semibold uppercase tracking-wider text-gray-400">Final Status</label>
                       {currentFinding.status && currentFinding.status !== 'Not Tested' && (
-                        <button onClick={() => updateFinding(currentCase.__id, 'status', 'Not Tested')}
-                          className="text-xs text-gray-500 hover:text-red-400 transition-colors flex items-center gap-1" title="Clear status">
-                          <X className="w-3 h-3" />Clear
+                        <button
+                          onClick={() => updateFinding(currentCase.__id, 'status', 'Not Tested')}
+                          className="text-xs text-gray-500 hover:text-red-400 transition-colors flex items-center gap-1"
+                          title="Clear status"
+                        >
+                          <X className="w-3 h-3" />
+                          Clear
                         </button>
                       )}
                     </div>
                     <div className="grid grid-cols-2 gap-1.5">
                       {STATUS_OPTIONS.filter(s => s.value !== 'Not Tested').map(s => {
-                        const Ic = s.icon;
-                        const sel = currentFinding.status === s.value;
+                        const Icon = s.icon;
+                        const selected = currentFinding.status === s.value;
                         return (
-                          <button key={s.value} onClick={() => updateFinding(currentCase.__id, 'status', s.value)}
-                            className={`flex items-center justify-center gap-1 px-2 py-2 rounded-md text-xs font-medium border transition-all ${sel?s.color+' ring-2 ring-offset-1 ring-offset-gray-900 ring-indigo-400':'bg-gray-800 text-gray-300 border-gray-700 hover:bg-gray-700'}`}>
-                            <Ic className="w-3.5 h-3.5 flex-shrink-0"/><span className="truncate">{s.value}</span>
+                          <button
+                            key={s.value}
+                            onClick={() => updateFinding(currentCase.__id, 'status', s.value)}
+                            className={`flex items-center justify-center gap-1 px-2 py-2 rounded-md text-xs font-medium border transition-all ${selected ? s.color + ' ring-2 ring-offset-1 ring-offset-gray-900 ring-indigo-400' : 'bg-gray-800 text-gray-300 border-gray-700 hover:bg-gray-700'}`}
+                          >
+                            <Icon className="w-3.5 h-3.5 flex-shrink-0" />
+                            <span className="truncate">{s.value}</span>
                           </button>
                         );
                       })}
                     </div>
                   </div>
+
                   <div className="flex justify-between pt-4">
-                    <button onClick={() => setCurrentIdx(Math.max(0,currentIdx-1))} disabled={currentIdx===0}
-                      className="flex items-center gap-2 px-4 py-2 bg-gray-800 border border-gray-700 text-gray-200 rounded-md hover:bg-gray-700 disabled:opacity-30 disabled:cursor-not-allowed font-medium text-sm">
-                      <ChevronLeft className="w-4 h-4"/> Previous
+                    <button
+                      onClick={() => setCurrentIdx(Math.max(0, currentIdx - 1))}
+                      disabled={currentIdx === 0}
+                      className="flex items-center gap-2 px-4 py-2 bg-gray-800 border border-gray-700 text-gray-200 rounded-md hover:bg-gray-700 disabled:opacity-30 disabled:cursor-not-allowed font-medium text-sm"
+                    >
+                      <ChevronLeft className="w-4 h-4" /> Previous
                     </button>
-                    <button onClick={() => setCurrentIdx(Math.min(testCases.length-1,currentIdx+1))} disabled={currentIdx===testCases.length-1}
-                      className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-500 disabled:opacity-30 disabled:cursor-not-allowed font-medium text-sm">
-                      Next <ChevronRight className="w-4 h-4"/>
+                    <button
+                      onClick={() => setCurrentIdx(Math.min(testCases.length - 1, currentIdx + 1))}
+                      disabled={currentIdx === testCases.length - 1}
+                      className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-500 disabled:opacity-30 disabled:cursor-not-allowed font-medium text-sm"
+                    >
+                      Next <ChevronRight className="w-4 h-4" />
                     </button>
                   </div>
                 </div>
@@ -1050,17 +1543,28 @@ document.querySelectorAll('.copy-btn').forEach(function(b){b.addEventListener('c
       </div>
 
       {showResetConfirm && (
-        <div className="fixed top-0 left-0 right-0 bottom-0 flex items-center justify-center p-4" style={{zIndex:99999,backgroundColor:'rgba(0,0,0,0.75)'}} onClick={() => setShowResetConfirm(false)}>
-          <div className="bg-gray-900 rounded-lg shadow-2xl max-w-md w-full overflow-hidden border-2 border-red-700" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="fixed top-0 left-0 right-0 bottom-0 flex items-center justify-center p-4"
+          style={{ zIndex: 99999, backgroundColor: 'rgba(0,0,0,0.75)' }}
+          onClick={() => setShowResetConfirm(false)}
+        >
+          <div
+            className="bg-gray-900 rounded-lg shadow-2xl max-w-md w-full overflow-hidden border-2 border-red-700"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="p-6">
               <div className="flex items-start gap-3 mb-4">
-                <div className="flex-shrink-0 w-10 h-10 bg-red-950 rounded-full flex items-center justify-center border border-red-800"><AlertCircle className="w-5 h-5 text-red-400"/></div>
+                <div className="flex-shrink-0 w-10 h-10 bg-red-950 rounded-full flex items-center justify-center border border-red-800">
+                  <AlertCircle className="w-5 h-5 text-red-400" />
+                </div>
                 <div className="flex-1">
                   <h3 className="text-lg font-bold text-gray-100 mb-1">Reset all data?</h3>
-                  <p className="text-sm text-gray-400">This will permanently delete everything from your current session.</p>
+                  <p className="text-sm text-gray-400">
+                    This will permanently delete everything from your current session.
+                  </p>
                 </div>
               </div>
-              <ul className="text-sm text-gray-300 space-y-1 mb-5" style={{paddingLeft:'52px'}}>
+              <ul className="text-sm text-gray-300 space-y-1 mb-5" style={{ paddingLeft: '52px' }}>
                 <li>• All {testCases.length} test cases</li>
                 <li>• All findings, notes, and step checkboxes</li>
                 <li>• All uploaded screenshots</li>
@@ -1070,11 +1574,40 @@ document.querySelectorAll('.copy-btn').forEach(function(b){b.addEventListener('c
                 <strong>This cannot be undone.</strong> Consider exporting your findings first if you want to keep them.
               </div>
               <div className="flex justify-between gap-2">
-                <button onClick={doReset} className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-500 font-medium text-sm">Yes, reset everything</button>
-                <button onClick={() => setShowResetConfirm(false)} className="px-4 py-2 bg-gray-800 border border-gray-700 text-gray-200 rounded-md hover:bg-gray-700 font-medium text-sm">Cancel</button>
+                <button
+                  onClick={doReset}
+                  className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-500 font-medium text-sm"
+                >
+                  Yes, reset everything
+                </button>
+                <button
+                  onClick={() => setShowResetConfirm(false)}
+                  className="px-4 py-2 bg-gray-800 border border-gray-700 text-gray-200 rounded-md hover:bg-gray-700 font-medium text-sm"
+                >
+                  Cancel
+                </button>
               </div>
             </div>
           </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Tooltip({ label, children }) {
+  const [show, setShow] = useState(false);
+  return (
+    <div
+      className="relative inline-flex"
+      onMouseEnter={() => setShow(true)}
+      onMouseLeave={() => setShow(false)}
+    >
+      {children}
+      {show && (
+        <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1.5 px-2 py-1 bg-black text-white text-xs rounded whitespace-nowrap pointer-events-none z-50 shadow-lg border border-gray-700">
+          {label}
+          <div className="absolute bottom-full left-1/2 -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-b-4 border-transparent border-b-black" />
         </div>
       )}
     </div>
@@ -1086,6 +1619,8 @@ function UploadScreen({ onLoad, fileInputRef, hasExistingData, onBack, existingT
   const [testerList, setTesterList] = useState(existingTesters || []);
   const [pendingFile, setPendingFile] = useState(null);
   const [promptCopied, setPromptCopied] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState(null);
 
   const copyPrompt = async () => {
     let ok = false;
@@ -1094,16 +1629,24 @@ function UploadScreen({ onLoad, fileInputRef, hasExistingData, onBack, existingT
         await navigator.clipboard.writeText(CSV_GENERATION_PROMPT);
         ok = true;
       }
-    } catch (e) { console.warn('Clipboard API failed, falling back:', e); }
+    } catch (e) {
+      console.warn('Clipboard API failed, falling back:', e);
+    }
     if (!ok) {
+      // Fallback for sandboxed iframes / older browsers
       try {
         const ta = document.createElement('textarea');
         ta.value = CSV_GENERATION_PROMPT;
-        ta.style.position = 'fixed'; ta.style.opacity = '0';
-        document.body.appendChild(ta); ta.focus(); ta.select();
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
         ok = document.execCommand('copy');
         document.body.removeChild(ta);
-      } catch (e) { console.error('Fallback copy failed:', e); }
+      } catch (e) {
+        console.error('Fallback copy failed:', e);
+      }
     }
     if (ok) {
       setPromptCopied(true);
@@ -1115,88 +1658,189 @@ function UploadScreen({ onLoad, fileInputRef, hasExistingData, onBack, existingT
   };
 
   const addTester = () => {
-    const raw = testerInput.trim(); if (!raw) return;
-    const names = raw.split(',').map(n => n.trim()).filter(n => n.length>0);
+    const raw = testerInput.trim();
+    if (!raw) return;
+    const names = raw.split(',').map(n => n.trim()).filter(n => n.length > 0);
     const newOnes = names.filter(n => !testerList.includes(n));
-    if (newOnes.length>0) setTesterList([...testerList, ...newOnes]);
+    if (newOnes.length > 0) setTesterList([...testerList, ...newOnes]);
     setTesterInput('');
   };
-  const removeTester = (n) => setTesterList(testerList.filter(t => t !== n));
-  const proceed = () => { if (pendingFile) onLoad(pendingFile, testerList); };
+
+  const removeTester = (name) => {
+    setTesterList(testerList.filter(t => t !== name));
+  };
+
+  const setFile = (file) => {
+    setPendingFile(file);
+    setUploadError(null);
+  };
+
+  const proceed = async () => {
+    if (!pendingFile || uploading) return;
+    setUploading(true);
+    setUploadError(null);
+    const result = await onLoad(pendingFile, testerList);
+    setUploading(false);
+    if (result?.error) {
+      setUploadError(result.error);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-indigo-950 flex items-center justify-center p-6">
+      <style>{`
+        ::-webkit-scrollbar { width: 10px; height: 10px; }
+        ::-webkit-scrollbar-track { background: #0a0a0f; }
+        ::-webkit-scrollbar-thumb { background: #2a2a35; border-radius: 5px; border: 2px solid #0a0a0f; }
+        ::-webkit-scrollbar-thumb:hover { background: #3a3a48; }
+        ::-webkit-scrollbar-corner { background: #0a0a0f; }
+        * { scrollbar-color: #2a2a35 #0a0a0f; scrollbar-width: thin; }
+      `}</style>
       <div className="max-w-2xl w-full">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-indigo-600 rounded-2xl mb-4 shadow-lg shadow-indigo-900/50"><FileText className="w-8 h-8 text-white"/></div>
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-indigo-600 rounded-2xl mb-4 shadow-lg shadow-indigo-900/50">
+            <FileText className="w-8 h-8 text-white" />
+          </div>
           <h1 className="text-3xl font-bold text-gray-100 mb-2">Test Case Report Compiler</h1>
         </div>
+
         {hasExistingData && (
           <div className="bg-amber-950/40 border border-amber-800 rounded-lg p-3 mb-4 text-sm text-amber-300">
             <strong>Heads up:</strong> Uploading a new CSV will replace your current test cases and findings. Use the button below to return to your session.
           </div>
         )}
-        <div onClick={() => !pendingFile && fileInputRef.current?.click()}
-          onDragOver={(e) => { e.preventDefault(); if (!pendingFile) e.currentTarget.classList.add('border-indigo-500','bg-indigo-950/30'); }}
-          onDragLeave={(e) => e.currentTarget.classList.remove('border-indigo-500','bg-indigo-950/30')}
-          onDrop={(e) => { e.preventDefault(); e.currentTarget.classList.remove('border-indigo-500','bg-indigo-950/30'); if (e.dataTransfer.files[0]) setPendingFile(e.dataTransfer.files[0]); }}
-          className={`bg-gray-900 border-2 border-dashed rounded-2xl p-10 text-center transition-all shadow-sm mb-4 ${pendingFile?'border-green-600 bg-green-950/20':'border-gray-700 cursor-pointer hover:border-indigo-500 hover:bg-indigo-950/20'}`}>
+
+        <div
+          onClick={() => !pendingFile && fileInputRef.current?.click()}
+          onDragOver={(e) => { e.preventDefault(); if (!pendingFile) e.currentTarget.classList.add('border-indigo-500', 'bg-indigo-950/30'); }}
+          onDragLeave={(e) => { e.currentTarget.classList.remove('border-indigo-500', 'bg-indigo-950/30'); }}
+          onDrop={(e) => {
+            e.preventDefault();
+            e.currentTarget.classList.remove('border-indigo-500', 'bg-indigo-950/30');
+            if (e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]);
+          }}
+          className={`bg-gray-900 border-2 border-dashed rounded-2xl p-10 text-center transition-all shadow-sm mb-4 ${pendingFile ? (uploadError ? 'border-red-600 bg-red-950/20' : 'border-green-600 bg-green-950/20') : 'border-gray-700 cursor-pointer hover:border-indigo-500 hover:bg-indigo-950/20'}`}
+        >
           {pendingFile ? (
             <>
-              <CheckCircle2 className="w-12 h-12 text-green-500 mx-auto mb-3"/>
+              {uploadError ? (
+                <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-3" />
+              ) : (
+                <CheckCircle2 className="w-12 h-12 text-green-500 mx-auto mb-3" />
+              )}
               <p className="text-lg font-medium text-gray-100 mb-1">{pendingFile.name}</p>
-              <p className="text-sm text-gray-400 mb-4">{(pendingFile.size/1024).toFixed(1)} KB</p>
+              <p className="text-sm text-gray-400 mb-4">{(pendingFile.size / 1024).toFixed(1)} KB</p>
+              {uploadError && (
+                <div className="bg-red-950/60 border border-red-700 rounded-md p-3 mb-4 text-sm text-red-200 text-left">
+                  <div className="flex items-start gap-2">
+                    <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <strong className="font-semibold">Couldn't load this CSV</strong>
+                      <div className="mt-1 opacity-90">{uploadError}</div>
+                    </div>
+                  </div>
+                </div>
+              )}
               <div className="flex gap-2 justify-center">
-                <button onClick={(e) => { e.stopPropagation(); setPendingFile(null); }} className="px-4 py-2 bg-gray-800 border border-gray-700 text-gray-200 rounded-md hover:bg-gray-700 text-sm font-medium">Choose different file</button>
-                <button onClick={(e) => { e.stopPropagation(); proceed(); }} className="px-6 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-500 text-sm font-medium">Start Testing →</button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); setFile(null); }}
+                  className="px-4 py-2 bg-gray-800 border border-gray-700 text-gray-200 rounded-md hover:bg-gray-700 text-sm font-medium"
+                  disabled={uploading}
+                >
+                  Choose different file
+                </button>
+                {!uploadError && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); proceed(); }}
+                    className="px-6 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-500 text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
+                    disabled={uploading}
+                  >
+                    {uploading ? 'Loading…' : 'Start Testing →'}
+                  </button>
+                )}
               </div>
             </>
           ) : (
             <>
-              <Upload className="w-12 h-12 text-gray-500 mx-auto mb-3"/>
+              <Upload className="w-12 h-12 text-gray-500 mx-auto mb-3" />
               <p className="text-lg font-medium text-gray-200 mb-1">Drop your CSV file here</p>
               <p className="text-sm text-gray-400">or click to browse</p>
-              <input ref={fileInputRef} type="file" accept=".csv" className="hidden" onChange={(e) => setPendingFile(e.target.files[0])}/>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".csv"
+                className="hidden"
+                onChange={(e) => setFile(e.target.files[0])}
+              />
             </>
           )}
         </div>
+
         <div className="text-xs text-gray-500 text-center mb-4">
           Expected columns: Module, Test ID, Test Case, Persona, Steps, Expected Result, Pre-conditions, Status, Tested By, Notes
         </div>
 
         <div className="text-center mb-4">
-          <button onClick={copyPrompt}
-            className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium border transition-all ${promptCopied?'bg-green-950/40 border-green-700 text-green-300':'bg-gray-900 border-gray-700 text-gray-400 hover:text-indigo-300 hover:border-indigo-700 hover:bg-indigo-950/30'}`}
-            title="Copy a prompt you can paste into Claude or ChatGPT to generate a CSV that fits this app">
+          <button
+            onClick={copyPrompt}
+            className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium border transition-all ${promptCopied ? 'bg-green-950/40 border-green-700 text-green-300' : 'bg-gray-900 border-gray-700 text-gray-400 hover:text-indigo-300 hover:border-indigo-700 hover:bg-indigo-950/30'}`}
+            title="Copy a prompt you can paste into Claude or ChatGPT to generate a CSV that fits this app"
+          >
             {promptCopied ? (
-              <><CheckCircle2 className="w-3.5 h-3.5"/>Prompt copied — paste into Claude/ChatGPT</>
+              <>
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                Prompt copied — paste into Claude/ChatGPT
+              </>
             ) : (
-              <><FileText className="w-3.5 h-3.5"/>Don't have a CSV? Copy AI prompt to generate one</>
+              <>
+                <FileText className="w-3.5 h-3.5" />
+                Don't have a CSV? Copy AI prompt to generate one
+              </>
             )}
           </button>
         </div>
+
         {hasExistingData && (
-          <button onClick={onBack} className="w-full mb-4 flex items-center justify-center gap-2 px-4 py-3 bg-gray-900 border-2 border-indigo-700 text-indigo-300 rounded-lg hover:bg-indigo-950/40 hover:border-indigo-500 transition-all font-semibold shadow-sm">
-            <ChevronLeft className="w-5 h-5"/>Back to current session
+          <button
+            onClick={onBack}
+            className="w-full mb-4 flex items-center justify-center gap-2 px-4 py-3 bg-gray-900 border-2 border-indigo-700 text-indigo-300 rounded-lg hover:bg-indigo-950/40 hover:border-indigo-500 transition-all font-semibold shadow-sm"
+          >
+            <ChevronLeft className="w-5 h-5" />
+            Back to current session
           </button>
         )}
+
         <div className="bg-gray-900 rounded-xl p-6 border border-gray-800 shadow-sm mb-4">
-          <div className="flex items-center gap-2 mb-3"><Users className="w-5 h-5 text-indigo-400"/><h2 className="font-semibold text-gray-100">Tester Names <span className="text-sm font-normal text-gray-400">(optional)</span></h2></div>
+          <div className="flex items-center gap-2 mb-3">
+            <Users className="w-5 h-5 text-indigo-400" />
+            <h2 className="font-semibold text-gray-100">Tester Names <span className="text-sm font-normal text-gray-400">(optional)</span></h2>
+          </div>
           <p className="text-sm text-gray-400 mb-3">Add one or more tester names. You'll be able to pick from this list on each test case page.</p>
           <div className="flex gap-2 mb-3">
-            <input type="text" value={testerInput} onChange={(e) => setTesterInput(e.target.value)}
-              onKeyDown={(e) => { if (e.key==='Enter') { e.preventDefault(); addTester(); } }}
+            <input
+              type="text"
+              value={testerInput}
+              onChange={(e) => setTesterInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addTester(); } }}
               placeholder="Enter name(s), comma-separated (e.g. Alice, Bob, Carol)"
-              className="flex-1 px-3 py-2 bg-gray-800 border border-gray-700 text-gray-100 placeholder-gray-500 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent" />
-            <button onClick={addTester} disabled={!testerInput.trim()} className="flex items-center gap-1 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed font-medium text-sm">
-              <Plus className="w-4 h-4"/> Add
+              className="flex-1 px-3 py-2 bg-gray-800 border border-gray-700 text-gray-100 placeholder-gray-500 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+            />
+            <button
+              onClick={addTester}
+              disabled={!testerInput.trim()}
+              className="flex items-center gap-1 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed font-medium text-sm"
+            >
+              <Plus className="w-4 h-4" /> Add
             </button>
           </div>
           {testerList.length > 0 && (
             <div className="flex flex-wrap gap-2">
-              {testerList.map(n => (
-                <span key={n} className="inline-flex items-center gap-1.5 bg-indigo-950/60 text-indigo-300 px-3 py-1 rounded-full text-sm font-medium border border-indigo-800">
-                  {n}<button onClick={() => removeTester(n)} className="hover:bg-indigo-800 rounded-full p-0.5"><X className="w-3 h-3"/></button>
+              {testerList.map(name => (
+                <span key={name} className="inline-flex items-center gap-1.5 bg-indigo-950/60 text-indigo-300 px-3 py-1 rounded-full text-sm font-medium border border-indigo-800">
+                  {name}
+                  <button onClick={() => removeTester(name)} className="hover:bg-indigo-800 rounded-full p-0.5">
+                    <X className="w-3 h-3" />
+                  </button>
                 </span>
               ))}
             </div>
@@ -1211,20 +1855,14 @@ function Field({ label, value, highlight }) {
   return (
     <div>
       <div className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1">{label}</div>
-      <div className={`text-sm whitespace-pre-wrap ${highlight?'bg-amber-950/30 border-l-4 border-amber-500 px-3 py-2 rounded text-amber-100':'text-gray-200'}`}>{value}</div>
+      <div className={`text-sm whitespace-pre-wrap ${highlight ? 'bg-amber-950/30 border-l-4 border-amber-500 px-3 py-2 rounded text-amber-100' : 'text-gray-200'}`}>
+        {value}
+      </div>
     </div>
   );
 }
 
-// Mount
-window.addEventListener('load', () => {
-  setTimeout(() => {
-    const loading = document.getElementById('loading');
-    if (loading) loading.style.display = 'none';
-    const root = ReactDOM.createRoot(document.getElementById('root'));
-    root.render(<App />);
-  }, 100);
-});
-</script>
+createRoot(document.getElementById('root')).render(<TestCaseReviewer />);
+  </script>
 </body>
 </html>
